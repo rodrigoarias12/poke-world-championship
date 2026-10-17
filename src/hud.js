@@ -1,5 +1,5 @@
 import { VW, VH } from './config.js';
-import { TYPES, DIFFICULTY, KEY_LABELS } from './data.js';
+import { TYPES, DIFFICULTY, KEY_LABELS, GMAX_FULL, GMAX_TIME } from './data.js';
 import { text, textWidth, roundRect, drawCreature, backOut } from './ui.js';
 
 // Colores de la barra de vida: [brillo, color, sombra]
@@ -87,6 +87,9 @@ function sidePanel(ctx, b, side, t) {
   drawCreature(ctx, f.key, pcx, pcy + 2, 20, { faceLeft: !left, boss: f.boss, t: f.animT });
   ctx.restore();
 
+  // Carga del Gigamax: anillo rojo alrededor del retrato
+  gmaxRing(ctx, b, side, f, pcx, pcy, t);
+
   // En línea: marca cuál es el Pokémon de este celular
   if (b.online && side === b.localSide) {
     roundRect(ctx, pcx - 8, pcy + 9.5, 16, 7, 3);
@@ -155,6 +158,36 @@ function sidePanel(ctx, b, side, t) {
   }
 }
 
+// 0..1 de carga (o de tiempo que le queda si ya es gigante); null si no hay Gigamax
+function gmaxState(b, side) {
+  const g = b.gx?.[side];
+  if (!g || b.gmaxOn === false) return null;
+  const f = b.fighters[side];
+  if (f.gmax > 0) return { k: f.gmax / GMAX_TIME, active: true, ready: false, used: true };
+  return { k: g.used ? 0 : g.m / GMAX_FULL, active: false, ready: !g.used && g.m >= GMAX_FULL, used: g.used };
+}
+
+function gmaxRing(ctx, b, side, f, pcx, pcy, t) {
+  const st = gmaxState(b, side);
+  if (!st || st.k <= 0) return;
+  ctx.save();
+  if (st.ready || st.active) {
+    ctx.globalAlpha = 0.5 + Math.sin(t * 8) * 0.3;
+    ctx.fillStyle = 'rgba(255,45,85,0.35)';
+    ctx.beginPath();
+    ctx.arc(pcx, pcy, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = st.active ? '#ff8fab' : st.ready ? '#ff2d55' : '#c4183f';
+  ctx.beginPath();
+  ctx.arc(pcx, pcy, 13.2, -Math.PI / 2, -Math.PI / 2 + st.k * Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
 export const PAUSE_RECT = { x: VW / 2 - 13, y: 10, w: 26, h: 20 };
 
 export function renderHUD(ctx, b, t) {
@@ -213,10 +246,36 @@ function renderHotbar(ctx, b, t) {
     ctx.fill();
     text(ctx, label, x + 1.2 + kw / 2, y + 4.7, { size: 3, weight: 900, align: 'center', color: '#1b1224' });
     if (!ready) text(ctx, cd >= 1 ? String(Math.ceil(cd)) : cd.toFixed(1), x + w - 2.5, y + 5, { size: 3.4, weight: 900, align: 'right', color: '#ffb43b' });
-    const name = m.name.toUpperCase();
+    const name = f.moveLabel(i).toUpperCase();
     const size = name.length > 13 ? 2.4 : name.length > 10 ? 2.8 : 3.2;
     text(ctx, name, x + 1.5, y + h - 2.5, { size, weight: 900, color: ready ? '#ffffff' : 'rgba(255,255,255,0.5)' });
   });
+  // GIGAMAX (tecla R)
+  const st = gmaxState(b, b.localSide);
+  if (!st) return;
+  const gx = 4 + 5 * (w + 0.5) + 4;
+  const gw = 32;
+  roundRect(ctx, gx - 2, y - 2, gw + 4, h + 4, 2.5);
+  ctx.fillStyle = 'rgba(14,10,24,0.72)';
+  ctx.fill();
+  roundRect(ctx, gx, y, gw, h, 1.5);
+  ctx.fillStyle = st.ready ? '#7a0f2e' : '#2a1020';
+  ctx.fill();
+  if (!st.ready && st.k > 0) {
+    ctx.fillStyle = st.active ? 'rgba(255,143,171,0.45)' : 'rgba(196,24,63,0.55)';
+    ctx.fillRect(gx, y + h * (1 - st.k), gw, h * st.k);
+  }
+  ctx.lineWidth = 0.7;
+  ctx.strokeStyle = st.ready ? `rgba(255,120,150,${0.7 + Math.sin(t * 8) * 0.3})` : 'rgba(255,255,255,0.2)';
+  roundRect(ctx, gx, y, gw, h, 1.5);
+  ctx.stroke();
+  roundRect(ctx, gx + 1.2, y + 1.2, 5.2, 4.6, 1);
+  ctx.fillStyle = st.ready ? '#f4f1ea' : '#6a6478';
+  ctx.fill();
+  text(ctx, 'R', gx + 3.8, y + 4.7, { size: 3, weight: 900, align: 'center', color: '#1b1224' });
+  const label = st.active ? `${Math.ceil(b.fighters[b.localSide].gmax)} s` : st.used ? 'USADO' : st.ready ? '¡LISTO!' : `${Math.floor(st.k * 100)}%`;
+  text(ctx, label, gx + gw - 2, y + 5, { size: 3, weight: 900, align: 'right', color: st.ready ? '#ffe66b' : 'rgba(255,255,255,0.6)' });
+  text(ctx, 'GIGAMAX', gx + 1.5, y + h - 2.5, { size: 3.2, weight: 900, color: st.ready || st.active ? '#ffffff' : 'rgba(255,255,255,0.5)' });
 }
 
 // Joystick y botones para pantallas táctiles
@@ -230,8 +289,45 @@ export function touchLayout() {
       { id: 'm2', x: 257, y: 156, r: 12 },
       { id: 'm3', x: 270, y: 121, r: 10 },
       { id: 'm4', x: 244, y: 130, r: 10 },
+      { id: 'gx', x: 303, y: 82, r: 10 },
     ],
   };
+}
+
+function renderGmaxButton(ctx, b, btn, input, t) {
+  const st = gmaxState(b, b.localSide);
+  if (!st) return;
+  const down = input.isDown(btn.id);
+  ctx.save();
+  ctx.globalAlpha = st.ready ? 0.95 : 0.6;
+  if (st.ready) {
+    ctx.fillStyle = `rgba(255,45,85,${0.3 + Math.sin(t * 8) * 0.2})`;
+    ctx.beginPath();
+    ctx.arc(btn.x, btn.y, btn.r + 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.arc(btn.x, btn.y, btn.r, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(10,6,20,0.6)';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(btn.x, btn.y, btn.r * (down ? 0.82 : 0.9), 0, Math.PI * 2);
+  ctx.fillStyle = st.ready ? '#d6204f' : '#4a2030';
+  ctx.fill();
+  if (!st.ready && st.k > 0) {
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = st.active ? '#ff8fab' : '#ff4d6d';
+    ctx.beginPath();
+    ctx.arc(btn.x, btn.y, btn.r - 1, -Math.PI / 2, -Math.PI / 2 + st.k * Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.lineWidth = 0.7;
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.arc(btn.x, btn.y, btn.r, 0, Math.PI * 2);
+  ctx.stroke();
+  text(ctx, 'GIGA', btn.x, btn.y + 1.2, { size: 3.4, weight: 900, align: 'center', color: '#fff', stroke: 'rgba(0,0,0,0.6)', strokeW: 0.8 });
+  ctx.restore();
 }
 
 export function renderTouchControls(ctx, b, input) {
@@ -239,6 +335,7 @@ export function renderTouchControls(ctx, b, input) {
   if (!layout || !input.touchMode) return;
   const f = b.player;
   layout.buttons.forEach((btn, i) => {
+    if (btn.id === 'gx') return renderGmaxButton(ctx, b, btn, input, b.t);
     const m = f.moves[i];
     const down = input.isDown(btn.id);
     const cd = f.cds[i];
@@ -267,7 +364,7 @@ export function renderTouchControls(ctx, b, input) {
     ctx.beginPath();
     ctx.arc(btn.x, btn.y, btn.r, 0, Math.PI * 2);
     ctx.stroke();
-    const words = m.name.toUpperCase().split(' ');
+    const words = f.moveLabel(i).toUpperCase().split(' ');
     const size = btn.r > 11 ? 3.2 : 2.5;
     words.slice(0, 2).forEach((wd, k, arr) => {
       text(ctx, wd, btn.x, btn.y + 1 + (k - (arr.length - 1) / 2) * size * 1.1, { size, weight: 900, align: 'center', color: '#fff', stroke: 'rgba(0,0,0,0.6)', strokeW: 0.8 });

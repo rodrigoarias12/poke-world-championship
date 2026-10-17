@@ -1,5 +1,5 @@
 import { VW, VH } from './config.js';
-import { CREATURES, ROSTER, TYPES, MOVES, DIFFICULTY, ARENAS, TOURNAMENT_DIFFICULTY, GAME_NAME, LEAGUE_NAME, KEY_LABELS, allSpriteIds, strongAgainst } from './data.js';
+import { CREATURES, ROSTER, TYPES, MOVES, DIFFICULTY, ARENAS, TOURNAMENT_DIFFICULTY, GAME_NAME, LEAGUE_NAME, KEY_LABELS, allSpriteIds, gmaxSpriteIds, strongAgainst } from './data.js';
 import { loadSprites } from './sprites.js';
 import { Arena } from './arena.js';
 import { Battle } from './battle.js';
@@ -226,7 +226,11 @@ export class LoadingScene {
     this.total = ids.length;
     this.done = 0;
     this.finished = false;
-    loadSprites(ids, (n) => (this.done = n)).then(() => (this.finished = true));
+    loadSprites(ids, (n) => (this.done = n)).then(() => {
+      this.finished = true;
+      // Las formas Gigamax se cargan después, sin hacer esperar
+      loadSprites(gmaxSpriteIds(), null, { still: true });
+    });
     game.audio.loadCries(ids);
   }
 
@@ -1067,10 +1071,11 @@ export class HowToScene {
       ['ESPACIO', 'esquivar / volar'],
       ['Q', 'ataque especial'],
       ['E', '¡ataque definitivo!'],
+      ['R', '¡GIGAMAX! (1 vez por pelea)'],
       ['M  N  V', 'música, sonidos, relator'],
     ];
     rows.forEach(([k, d], i) => {
-      const y = 38 + i * 7.6;
+      const y = 38 + i * 6.7;
       const kw = textWidth(ctx, k, 3.4) + 4;
       roundRect(ctx, 14, y - 4.5, kw, 6, 1.4);
       ctx.fillStyle = '#f4f1ea';
@@ -1087,10 +1092,11 @@ export class HowToScene {
       'Cada Pokémon tiene 5 ataques distintos.',
       'Si se debilita uno, entra el siguiente.',
       'En la tableta: joystick y botones.',
+      'Anillo rojo lleno: ¡a hacer Gigamax!',
     ];
     tips.forEach((tip, i) => {
-      text(ctx, '•', 170, 40 + i * 9.6, { size: 4, color: '#ffb43b' });
-      text(ctx, tip, 175, 40 + i * 9.6, { size: 3.8, weight: 600, color: 'rgba(255,255,255,0.88)' });
+      text(ctx, '•', 170, 40 + i * 8.6, { size: 4, color: '#ffb43b' });
+      text(ctx, tip, 175, 40 + i * 8.6, { size: 3.8, weight: 600, color: 'rgba(255,255,255,0.88)' });
     });
 
     panel(ctx, 8, 96, 304, 62, { fill: 'rgba(40,32,64,0.92)', r: 4 });

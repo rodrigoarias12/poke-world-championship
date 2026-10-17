@@ -9,7 +9,7 @@ export const PROTO = 1;
 const MOVE_KEY = new Map(Object.entries(MOVES).map(([k, m]) => [m, k]));
 
 // Campos que no viajan: referencias internas, datos fijos o cosas que el invitado recalcula
-const SKIP = new Set(['battle', 'def', 'pending', 'intent', 'stats', 'moves']);
+const SKIP = new Set(['battle', 'def', 'pending', 'intent', 'stats', 'moves', 'baseDs', 'baseTall', 'baseR']);
 
 // Convierte cualquier valor del juego en algo que se puede mandar como JSON
 export function pack(v) {
@@ -72,7 +72,9 @@ export function snapshot(b, events) {
     zm: pack(b.zoom || 0),
     sh: pack(b.shakeAmt),
     fl: b.flashFx && b.flashFx.a > 0 ? pack(b.flashFx) : null,
-    ci: b.cutin ? { s: b.cutin.f.side, m: MOVE_KEY.get(b.cutin.m), t: pack(b.cutin.t), d: b.cutin.dur } : null,
+    ci: b.cutin ? { s: b.cutin.f.side, m: MOVE_KEY.get(b.cutin.m), t: pack(b.cutin.t), d: b.cutin.dur, g: b.cutin.gname, gf: b.cutin.gform } : null,
+    gx: pack(b.gx),
+    gf: b.gmaxFx ? { s: b.gmaxFx.f.side, t: pack(b.gmaxFx.t), d: b.gmaxFx.dur } : null,
     sw: b.switching ? pack(b.switching) : null,
     tm: b.teams.map((t) => [t.idx, t.fainted.slice()]),
     w: b.winner ? b.winner.side : null,

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Grabar videos Gigamax</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; background: #111; color: #ddd; font: 14px system-ui; }
+    /* En horizontal, si no el juego pide girar el celular */
+    iframe { width: 480px; height: 270px; border: 0; background: #000; margin: 8px; }
+    #estado { padding: 0 8px; }
+    canvas { max-width: 45vw; margin: 8px; }
+  </style>
+</head>
+<body>
+  <!-- Duelos Gigamax grabados cuadro a cuadro. ?duelo=0..3 elige cuál.
+       Los cuadros y el audio van al receptor local (puerto 5174). -->
+  <iframe id="juego" src="../index.html?mute&timerloop"></iframe>
+  <div id="estado">Cargando…</div>
+  <script type="module" src="grabar-gigamax.js"></script>
+</body>
+</html>

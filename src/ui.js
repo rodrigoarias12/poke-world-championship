@@ -84,8 +84,8 @@ export function bar(ctx, x, y, w, h, frac, color, { back = 'rgba(0,0,0,0.55)', g
 }
 
 // Dibuja un Pokémon (animado) centrado en (x, y) ajustado a `size` unidades
-export function drawCreature(ctx, id, x, y, size, { faceLeft = false, white = false, black = false, alpha = 1, boss = false, t = performance.now() / 1000 } = {}) {
-  const spr = spriteOf(id, boss);
+export function drawCreature(ctx, id, x, y, size, { faceLeft = false, white = false, black = false, alpha = 1, boss = false, gmax = false, t = performance.now() / 1000 } = {}) {
+  const spr = spriteOf(id, boss, gmax);
   const img = white ? spr.white : black ? spr.black : frameAt(spr, t);
   const scale = size / Math.max(img.width, img.height);
   const flip = spr.facesLeft !== faceLeft;

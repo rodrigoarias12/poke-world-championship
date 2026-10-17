@@ -93,14 +93,15 @@ export class GuestBattle extends Battle {
     });
     s.f.forEach((pf, side) => {
       const f = this.fighters[side];
-      const ds = f.ds;
       Object.assign(f, unpack(pf, this));
-      // Se dibuja con el tamaño del sprite de este celular
-      f.ds = ds;
+      // Se dibuja con el tamaño del sprite de este celular (y si es gigante, agrandado)
+      f.applyGiant();
     });
     this.projectiles = s.p.map((p) => unpack(p, this));
     this.hazards = s.h.map((h) => unpack(h, this));
-    this.cutin = s.ci ? { f: this.fighters[s.ci.s], m: MOVES[s.ci.m], t: s.ci.t, dur: s.ci.d } : null;
+    this.cutin = s.ci ? { f: this.fighters[s.ci.s], m: MOVES[s.ci.m], t: s.ci.t, dur: s.ci.d, gname: s.ci.g, gform: s.ci.gf } : null;
+    if (s.gx) this.gx = s.gx;
+    this.gmaxFx = s.gf ? { f: this.fighters[s.gf.s], t: s.gf.t, dur: s.gf.d, boom: s.gf.t >= 1.1 } : null;
     this.switching = s.sw;
     this.winner = s.w === null ? null : this.fighters[s.w];
     if (s.ss) this.sideStats = s.ss;
@@ -141,6 +142,12 @@ export class GuestBattle extends Battle {
         h.y = lerp(ha.y, q.y, k);
       }
     }
+  }
+
+  // El invitado no simula: su botón GIGAMAX se cuenta y viaja al anfitrión
+  requestGmax() {
+    this.gmaxPress = (this.gmaxPress || 0) + 1;
+    return false;
   }
 
   // Entró un Pokémon nuevo: el cartel se arma desde el punto de vista del invitado

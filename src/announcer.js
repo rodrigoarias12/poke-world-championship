@@ -7,6 +7,7 @@ const LINES = {
     start: ['¡Bienvenidos al Poké World Championship! ¡{a} contra {b}! ¡A pelear!', '¡Comienza el combate! ¡{a} se enfrenta a {b}!', '¡Atención, público! ¡{a} contra {b}! ¡Que gane el mejor!'],
     ult: ['¡{a} usa {move}!', '¡Atención! ¡{move}!', '¡{a} lanza {move}! ¡Qué poder!'],
     surf: ['¡Una ola gigante! ¡A surfear!', '¡{a} usa Surf! ¡Cuidado con la ola!'],
+    gmax: ['¡{a} se vuelve GIGANTE! ¡GIGAMAX!', '¡Increíble! ¡{a} Gigamax!', '¡Miren el tamaño de {a}! ¡Es enorme!'],
     ice: ['¡Rayo Hielo! ¡Se congela el agua!', '¡Brrr! ¡Qué frío!'],
     super: ['¡Es súper eficaz!', '¡Eso dolió mucho!', '¡Súper eficaz!'],
     crit: ['¡Golpe crítico!', '¡Crítico! ¡Qué golpe!'],
@@ -26,6 +27,7 @@ const LINES = {
     start: ['Welcome to the Poké World Championship! {a} versus {b}! Let\'s battle!', 'Here we go! {a} takes on {b}!', 'Ladies and gentlemen! {a} versus {b}!'],
     ult: ['{a} used {move}!', 'Here comes {move}!', '{a} unleashes {move}! What power!'],
     surf: ['Surf\'s up, dude!', '{a} used Surf! Ride the wave!'],
+    gmax: ['{a} goes GIGANTAMAX!', 'Unbelievable! Gigantamax {a}!', 'Look at the size of {a}!'],
     ice: ['Ice Beam! The water is freezing!', 'Brrr! That\'s cold!'],
     super: ['It\'s super effective!', 'That\'s gotta hurt!', 'Super effective!'],
     crit: ['A critical hit!', 'Critical hit! What a blow!'],
@@ -44,7 +46,7 @@ const LINES = {
 };
 
 // Cada cuánto puede repetirse cada tipo de frase (segundos)
-const COOLDOWN = { super: 5, crit: 5, combo: 6, dodge: 10, ult: 3, low: 0, sleep: 6, surf: 6, ice: 6 };
+const COOLDOWN = { super: 5, crit: 5, combo: 6, dodge: 10, ult: 3, low: 0, sleep: 6, surf: 6, ice: 6, gmax: 0 };
 
 const MODES = ['texto', 'voz', 'off'];
 

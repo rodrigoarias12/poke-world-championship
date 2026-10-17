@@ -60,9 +60,10 @@ export class RemoteController {
     this.mx = 0;
     this.my = 0;
     this.held = 0;
-    this.counts = [0, 0, 0, 0, 0];
-    this.pending = [0, 0, 0, 0, 0];
-    this.expire = [0, 0, 0, 0, 0];
+    // 5 ataques + GIGAMAX
+    this.counts = [0, 0, 0, 0, 0, 0];
+    this.pending = [0, 0, 0, 0, 0, 0];
+    this.expire = [0, 0, 0, 0, 0, 0];
     this.lastInput = performance.now();
   }
 
@@ -71,7 +72,7 @@ export class RemoteController {
     this.mx = m.mx || 0;
     this.my = m.my || 0;
     this.held = m.h || 0;
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       const d = (m.p?.[i] || 0) - this.counts[i];
       if (d > 0) {
         this.pending[i] = Math.min(2, this.pending[i] + d);
@@ -90,7 +91,11 @@ export class RemoteController {
       this.my = 0;
       this.held = 0;
     }
-    for (let i = 0; i < 5; i++) if (this.pending[i] && now > this.expire[i]) this.pending[i] = 0;
+    for (let i = 0; i < 6; i++) if (this.pending[i] && now > this.expire[i]) this.pending[i] = 0;
+    if (this.pending[5] > 0) {
+      this.pending[5] = 0;
+      this.battle.requestGmax(this.side);
+    }
     const f = this.battle.fighters[this.side];
     applyButtons(f, this.mx, this.my, (i) => this.pending[i] > 0, (i) => ((this.held >> i) & 1) === 1);
     const used = f.intent.use;

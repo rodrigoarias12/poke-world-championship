@@ -3,7 +3,7 @@
 // si el navegador no puede, usa la imagen fija de Pokémon Negro/Blanco;
 // sin internet, usa los dibujos procedurales de art.js.
 import { creatureSprite } from './art.js';
-import { CREATURES } from './data.js';
+import { CREATURES, GMAX } from './data.js';
 
 const BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
 const MAX_FRAMES = 40;
@@ -92,7 +92,7 @@ async function loadAnimated(id) {
   return finish(frames, durations);
 }
 
-function loadStatic(id) {
+function loadStatic(id, url) {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -106,29 +106,39 @@ function loadStatic(id) {
       }
     };
     img.onerror = () => resolve(null);
-    img.src = `${BASE}versions/generation-v/black-white/${id}.png`;
+    img.src = url;
   });
 }
 
-async function loadOne(id) {
+// Imagen fija: primero la de Negro/Blanco; las formas nuevas (Gigamax) solo tienen la común
+async function loadStaticAny(id) {
+  if (id > 10000) return (await loadStatic(id, `${BASE}${id}.png`)) || loadStatic(id, `${BASE}versions/generation-v/black-white/${id}.png`);
+  return (await loadStatic(id, `${BASE}versions/generation-v/black-white/${id}.png`)) || loadStatic(id, `${BASE}${id}.png`);
+}
+
+async function loadOne(id, still) {
   let spr = null;
-  try {
-    spr = await loadAnimated(id);
-  } catch {
-    spr = null;
+  if (!still) {
+    try {
+      spr = await loadAnimated(id);
+    } catch {
+      spr = null;
+    }
   }
-  if (!spr) spr = await loadStatic(id);
+  if (!spr) spr = await loadStaticAny(id);
   if (spr) store.set(id, spr);
 }
 
-export async function loadSprites(ids, onProgress) {
+// still: imagen fija (las formas Gigamax animadas vienen oscuras y con bordes rosados;
+// las fijas en pixel art se ven limpias)
+export async function loadSprites(ids, onProgress, { still = false } = {}) {
   let n = 0;
   // De a 4 para no saturar la conexión
   const queue = [...ids];
   const worker = async () => {
     while (queue.length) {
       const id = queue.shift();
-      await loadOne(id);
+      await loadOne(id, still);
       onProgress?.(++n, ids.length);
     }
   };
@@ -156,10 +166,16 @@ function fallbackFor(type) {
   return fallbackCache.get(key);
 }
 
-export function spriteOf(key, boss = false) {
+export function spriteOf(key, boss = false, gmax = false) {
   const c = CREATURES[key];
+  if (gmax && GMAX[key] && store.has(GMAX[key].id)) return store.get(GMAX[key].id);
   const id = boss ? c.boss.id : c.id;
   return store.get(id) || fallbackFor(c.type);
+}
+
+// ¿Ya está cargada la forma Gigamax de este Pokémon?
+export function hasGmaxSprite(key) {
+  return !!GMAX[key] && store.has(GMAX[key].id);
 }
 
 // Cuadro de la animación para el tiempo t (en segundos)

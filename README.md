@@ -17,10 +17,17 @@ jefe Mega en la final. Nació para jugar en familia, inspirado en los videos de
 | ESPACIO | Esquivar (o volar) |
 | Q | Ataque especial |
 | E | Ataque definitivo |
+| R | ¡GIGAMAX! (una vez por pelea, cuando se llena el anillo rojo) |
 | M / N / V | Música / sonidos / relator |
 
-En tableta o celular aparecen un joystick y botones en pantalla. Los ataques apuntan
-solos al rival.
+En tableta o celular aparecen un joystick y botones en pantalla (el botón GIGA es el
+Gigamax). Los ataques apuntan solos al rival.
+
+**Gigamax:** pegando y recibiendo golpes se llena el anillo rojo del retrato. Al usarlo, tu
+Pokémon se vuelve gigante por 14 segundos: pega más fuerte, recibe menos daño y su ataque
+definitivo pasa a ser su ataque Gigamax (Gigallamarada, Gigatronada…). Pikachu, Charizard,
+Blastoise, Venusaur, Gengar, Snorlax, Lapras y Eevee tienen forma Gigamax; los demás hacen
+Dinamax.
 
 ## Jugar en línea
 

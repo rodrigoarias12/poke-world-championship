@@ -1,8 +1,8 @@
-import { CREATURES, MOVES } from './data.js';
+import { CREATURES, MOVES, GMAX, MAX_MOVE, GMAX_SIZE } from './data.js';
 import { FIELD, SPRITE_SCALE, BOSS_SCALE } from './config.js';
 import { spriteOf, frameAt } from './sprites.js';
 import { TYPE_COLORS } from './effects.js';
-import { startMove, updateAction } from './moves.js';
+import { startMove, updateAction, glow } from './moves.js';
 import { speakName, moveNameFor } from './announcer.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -24,6 +24,13 @@ export class Fighter {
     this.tall = spr.h * this.ds;
     this.wide = spr.w * this.ds;
     this.r = clamp(this.wide * 0.3, 6, 24);
+    // Tamaño normal (al volverse gigante se calcula desde acá)
+    this.baseDs = this.ds;
+    this.baseTall = this.tall;
+    this.baseR = this.r;
+    this.gmax = 0; // segundos que le quedan de gigante
+    this.gs = 1; // tamaño actual (1 = normal)
+    this.gform = false; // usa su forma Gigamax
     this.scale = Math.max(0.8, this.tall / 16);
     this.maxHp = Math.round(def.hp * (boss ? 1.7 : 1));
     this.hp = this.maxHp;
@@ -88,7 +95,33 @@ export class Fighter {
   }
 
   get sprite() {
-    return spriteOf(this.key, this.boss);
+    return spriteOf(this.key, this.boss, this.gform && this.gs > 1.35);
+  }
+
+  // Ajusta tamaño, alto y radio al tamaño de gigante actual
+  applyGiant() {
+    const spr = this.sprite;
+    const normal = spriteOf(this.key, this.boss);
+    this.ds = spr === normal ? this.baseDs * this.gs : (this.baseTall * this.gs) / spr.h;
+    this.tall = spr.h * this.ds;
+    this.wide = spr.w * this.ds;
+    this.r = this.baseR * (1 + (this.gs - 1) * 0.5);
+  }
+
+  // Nombre del ataque i (siendo gigante, el definitivo es el ataque Gigamax/Dinamax)
+  moveLabel(i) {
+    const m = this.moves[i];
+    if (i !== 4 || this.gmax <= 0) return m.name;
+    if (this.gform && GMAX[this.key]) return GMAX[this.key].move;
+    return MAX_MOVE[m.type] || MAX_MOVE[this.type] || 'Maxiataque';
+  }
+
+  endGmax() {
+    const b = this.battle;
+    this.gmax = 0;
+    if (!this.alive) return;
+    b.effects.burst(this.x, this.y - this.tall / 2, ['#ffffff', '#ffb3c6', '#ff4d6d', '#d6204f'], { count: 34, speed: 110, size: 2.2, life: 0.7 });
+    b.audio.play('orb');
   }
 
   // ¿Hay que espejar el sprite para mirar hacia donde mira el luchador?
@@ -118,7 +151,7 @@ export class Fighter {
     }
     this.cds[i] = m.cd * (this.boss ? 0.85 : 1);
     if (m.kind !== 'dodge' && i > 0) {
-      this.battle.callout(this, `¡${m.name}!`, i >= 3);
+      this.battle.callout(this, `¡${this.moveLabel(i)}!`, i >= 3);
       if (m.fx) this.battle.audio.cast(m.fx);
     }
     if (i >= 3 && m.kind !== 'dodge' && m.fx) {
@@ -131,7 +164,13 @@ export class Fighter {
       this.battle.audio.cry(this.cryId, { vol: 0.35 });
       const ann = this.battle.game.announcer;
       const kind = m.kind === 'wave' ? 'surf' : m.freeze ? 'ice' : 'ult';
-      this.battle.say(kind, { a: speakName(this.name), move: moveNameFor(ann?.lang, m.name) }, 1.5);
+      this.battle.say(kind, { a: speakName(this.name), move: this.gmax > 0 ? this.moveLabel(4) : moveNameFor(ann?.lang, m.name) }, 1.5);
+      // Ataque Gigamax: explosión de energía roja
+      if (this.gmax > 0) {
+        this.battle.effects.circle(this.x, this.y, this.r * 3.2, '#ff4d6d', 1.2);
+        this.battle.effects.burst(this.x, this.y - this.tall / 2, ['#ffffff', '#ffb3c6', '#ff4d6d', '#d6204f'], { count: 40, speed: 120, size: 2.4, life: 0.7 });
+        this.battle.flashScreen('#ff2d55', 0.35);
+      }
     } else if (m.kind === 'wave') {
       this.battle.say('surf', { a: speakName(this.name) }, 1.4);
     }
@@ -172,6 +211,19 @@ export class Fighter {
       b.effects.trail(this.x + (Math.random() - 0.5) * this.wide * 0.6, this.y - Math.random() * this.tall, TYPE_COLORS.hielo, { size: 1.4, vy: 6, life: 0.5 });
     }
     this.enterT += dt;
+    if (this.gmax > 0) {
+      this.gmax = Math.max(0, this.gmax - dt);
+      if (this.gmax <= 0) this.endGmax();
+      else if (this.alive && Math.random() < 0.55) {
+        b.effects.trail(this.x + (Math.random() - 0.5) * this.wide * 0.8, this.y - Math.random() * this.tall, ['#ffffff', '#ffb3c6', '#ff4d6d'], { size: 1.8, vy: -30, life: 0.6 });
+      }
+    }
+    // Crece o se achica de a poco
+    const goal = this.gmax > 0 ? GMAX_SIZE : 1;
+    if (this.gs !== goal) {
+      this.gs = goal > this.gs ? Math.min(goal, this.gs + dt * 2) : Math.max(goal, this.gs - dt * 1.6);
+      this.applyGiant();
+    }
 
     for (let i = 0; i < 5; i++) this.cds[i] = Math.max(0, this.cds[i] - dt);
     this.iframes = Math.max(0, this.iframes - dt);
@@ -212,7 +264,7 @@ export class Fighter {
       updateAction(this, b, dt);
     } else {
       const canMove = this.alive && fighting && this.stun <= 0 && this.root <= 0;
-      const sp = this.speed * (this.slow > 0 ? 0.5 : 1);
+      const sp = this.speed * (this.slow > 0 ? 0.5 : 1) * (this.gmax > 0 ? 0.85 : 1);
       const k = 1 - Math.exp(-14 * dt);
       this.vx += ((canMove ? it.mx : 0) * sp - this.vx) * k;
       this.vy += ((canMove ? it.my : 0) * sp - this.vy) * k;
@@ -226,7 +278,8 @@ export class Fighter {
     this.x += (this.vx + this.kx) * dt;
     this.y += (this.vy + this.ky) * dt;
     this.x = clamp(this.x, FIELD.x0 + this.r * 0.6, FIELD.x1 - this.r * 0.6);
-    this.y = clamp(this.y, FIELD.y0, FIELD.y1);
+    // Un gigante no puede pararse tan arriba (si no, la cabeza queda fuera de la pantalla)
+    this.y = clamp(this.y, this.gs > 1 ? Math.min(FIELD.y1 - 10, Math.max(FIELD.y0, this.tall + 14)) : FIELD.y0, FIELD.y1);
 
     const moved = Math.hypot(this.x - ox, this.y - oy) / Math.max(dt, 1e-4);
     this.moving = moved > 10;
@@ -251,6 +304,54 @@ export class Fighter {
     if (this.boss && this.alive && Math.random() < 0.4) {
       b.effects.trail(this.x + (Math.random() - 0.5) * this.wide, this.y - Math.random() * this.tall, TYPE_COLORS[this.type], { size: 1.8, vy: -16 });
     }
+  }
+
+  // Corona de nubes rojas que gira sobre la cabeza (como en los combates Dinamax)
+  renderClouds(ctx, t, a) {
+    const top = this.y - this.lift - this.tall - 2;
+    const rx = Math.max(12, this.wide * 0.42);
+    const ry = 3.6;
+    const n = 16;
+    const puffs = [];
+    for (let i = 0; i < n; i++) {
+      const ang = t * 0.9 + (i / n) * Math.PI * 2;
+      puffs.push({ x: this.x + Math.cos(ang) * rx, y: top + Math.sin(ang) * ry, r: 4.2 + ((i * 7) % 5) * 0.45, s: Math.sin(ang) });
+    }
+    // De atrás hacia adelante, así la corona tiene volumen
+    puffs.sort((p, q) => p.s - q.s);
+    ctx.save();
+    ctx.globalAlpha = a * 0.92;
+    for (const p of puffs) {
+      const front = (p.s + 1) / 2;
+      ctx.fillStyle = front > 0.5 ? '#9e1238' : '#5c0a24';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (const p of puffs) {
+      if (p.s < 0.1) continue;
+      ctx.fillStyle = 'rgba(255,107,138,0.75)';
+      ctx.beginPath();
+      ctx.arc(p.x - p.r * 0.2, p.y - p.r * 0.35, p.r * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Un rayito de vez en cuando
+    if (Math.floor(t * 5 + this.side * 3) % 6 === 0) {
+      let x = this.x + Math.cos(Math.floor(t * 5) * 2.4) * rx;
+      let y = top - 2;
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = '#ffe0ea';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      for (let j = 0; j < 4; j++) {
+        x += j % 2 ? 2.5 : -2.5;
+        y -= 3.5;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   render(ctx, t) {
@@ -303,9 +404,16 @@ export class Fighter {
       return;
     }
 
+    // Gigante: aura roja detrás
+    const giant = this.alive && this.gs > 1.02 ? (this.gs - 1) / (GMAX_SIZE - 1) : 0;
+    if (giant > 0) {
+      const pulse = 0.85 + Math.sin(t * 7) * 0.15;
+      glow(ctx, this.x, this.y - this.lift - this.tall * 0.45, this.tall * 0.75 + 6, '#ff2d55', 0.45 * giant * pulse * alpha);
+    }
+
     const asleep = this.sleep > 0;
     const bob = asleep ? 0 : this.moving ? Math.abs(Math.sin(this.walkT * 8)) * 1.5 : 0;
-    const breathe = asleep ? Math.sin(t * 3) * 0.04 : 0;
+    const breathe = asleep ? Math.sin(t * 3) * 0.04 : this.gs > 1.02 ? Math.sin(t * 2.6) * 0.025 : 0;
     const sq = this.squash;
     const sx = 1 + sq * 0.15 + breathe;
     const sy = 1 - sq * 0.12 - breathe;
@@ -334,6 +442,7 @@ export class Fighter {
     ctx.restore();
 
     if (!this.alive) return;
+    if (giant > 0.5) this.renderClouds(ctx, t, (giant - 0.5) * 2 * alpha);
     // Electrizado: chispas alrededor del cuerpo
     if (this.shockT > 0) {
       ctx.save();

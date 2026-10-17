@@ -41,6 +41,16 @@ export class AI {
     const dy = opp.y - f.y;
     const dist = Math.hypot(dx, dy) || 1;
 
+    // Gigamax: cuando se carga, espera un ratito y se vuelve gigante
+    if (b.gmaxReady?.(this.side) && !p.noGmax) {
+      if (this.gmaxWait === undefined) this.gmaxWait = 0.6 + Math.random() * 2.4;
+      this.gmaxWait -= dt;
+      if (this.gmaxWait <= 0) {
+        this.gmaxWait = undefined;
+        b.requestGmax(this.side);
+      }
+    }
+
     this.thinkT -= dt;
     this.strafeT -= dt;
     this.modeT -= dt;

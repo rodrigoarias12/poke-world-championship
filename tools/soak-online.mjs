@@ -41,6 +41,7 @@ const shuffle = (a) => [...a].sort(() => Math.random() - 0.5);
 let errors = 0;
 let mismatches = 0;
 let totalEvents = 0;
+let gmaxUsed = 0;
 const started = Date.now();
 
 for (let i = 0; i < N; i++) {
@@ -83,13 +84,14 @@ for (let i = 0; i < N; i++) {
       const f = guest.fighters[1];
       if (f.intent.use >= 0 && f.intent.use !== lastUse) counts[f.intent.use]++;
       lastUse = f.intent.use;
-      toHost.push([t + lag, JSON.stringify({ t: 'in', mx: f.intent.mx, my: f.intent.my, h: 0, p: counts.slice() })]);
+      toHost.push([t + lag, JSON.stringify({ t: 'in', mx: f.intent.mx, my: f.intent.my, h: 0, p: [...counts, guest.gmaxPress || 0] })]);
       guest.update(dt);
       if (k % 6 === 0) {
         host.render(fakeCtx);
         guest.render(fakeCtx);
       }
     }
+    gmaxUsed += host.gx.filter((g) => g.used).length;
     const same = host.winner?.side === guest.winner?.side && host.fighters.every((f, s) => Math.round(f.hp) === Math.round(guest.fighters[s].hp));
     if (host.state !== 'end' || guest.state !== 'end' || !same) {
       mismatches++;
@@ -100,4 +102,4 @@ for (let i = 0; i < N; i++) {
     console.log(`#${i} ERROR ${cfg.teamA} vs ${cfg.teamB}: ${e.stack.split('\n').slice(0, 3).join(' | ')}`);
   }
 }
-console.log(`peleas=${N} errores=${errors} distintas=${mismatches} eventos=${totalEvents} tiempo=${((Date.now() - started) / 1000).toFixed(1)}s`);
+console.log(`peleas=${N} errores=${errors} distintas=${mismatches} gigamax=${gmaxUsed}/${N * 2} eventos=${totalEvents} tiempo=${((Date.now() - started) / 1000).toFixed(1)}s`);

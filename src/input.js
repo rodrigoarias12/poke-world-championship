@@ -11,6 +11,8 @@ const KEYMAP = {
   Space: ['m2', 'confirm'], ShiftLeft: ['m2'], ShiftRight: ['m2'],
   KeyQ: ['m3'], KeyU: ['m3'],
   KeyE: ['m4'], KeyI: ['m4'],
+  // Gigamax: R (u O)
+  KeyR: ['gx'], KeyO: ['gx'],
   Enter: ['confirm'], NumpadEnter: ['confirm'],
   Escape: ['back', 'pause'], Backspace: ['back'], KeyP: ['pause'],
   KeyM: ['mute'], KeyN: ['sfx'], KeyV: ['voice'],

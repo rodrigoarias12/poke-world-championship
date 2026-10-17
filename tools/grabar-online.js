@@ -5,8 +5,8 @@
 //
 // Uso: abrir tools/grabar-online.html con el receptor escuchando en el 5174.
 import { drawLogo } from '../src/scenes.js';
-import { Sfx } from '../src/audio.js';
 import { text, roundRect } from '../src/ui.js';
+import { toBlob, renderAudio, takeOver, ribbon, endCard } from './video-comun.js';
 
 const FPS = 30;
 const MAX_SECS = 34;
@@ -30,82 +30,6 @@ async function waitFor(fn, ms = 60000) {
     if (performance.now() - t0 > ms) throw new Error('tardó demasiado');
     await sleep(100);
   }
-}
-
-function toBlob(canvas, quality) {
-  return new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
-}
-
-function wavBlob(buf) {
-  const ch = buf.numberOfChannels;
-  const len = buf.length * ch * 2;
-  const view = new DataView(new ArrayBuffer(44 + len));
-  const str = (o, s) => [...s].forEach((c, i) => view.setUint8(o + i, c.charCodeAt(0)));
-  str(0, 'RIFF');
-  view.setUint32(4, 36 + len, true);
-  str(8, 'WAVE');
-  str(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, ch, true);
-  view.setUint32(24, buf.sampleRate, true);
-  view.setUint32(28, buf.sampleRate * ch * 2, true);
-  view.setUint16(32, ch * 2, true);
-  view.setUint16(34, 16, true);
-  str(36, 'data');
-  view.setUint32(40, len, true);
-  const data = [...Array(ch)].map((_, c) => buf.getChannelData(c));
-  let o = 44;
-  for (let i = 0; i < buf.length; i++) {
-    for (let c = 0; c < ch; c++) {
-      view.setInt16(o, Math.max(-1, Math.min(1, data[c][i])) * 0x7fff, true);
-      o += 2;
-    }
-  }
-  return new Blob([view], { type: 'audio/wav' });
-}
-
-async function renderAudio(cryData, events, secs) {
-  const sr = 44100;
-  const off = new OfflineAudioContext(2, Math.ceil(sr * secs), sr);
-  const a = new Sfx();
-  a.silent = false;
-  a.sfxOn = true;
-  a.musicOn = false;
-  a.init(off);
-  for (const [id, data] of cryData) {
-    try {
-      a.cryBuf.set(id, await off.decodeAudioData(data.slice(0)));
-    } catch { /* grito que no se pudo decodificar */ }
-  }
-  for (const e of events) {
-    if (e.t >= secs) continue;
-    a.offset = e.t;
-    try {
-      a[e.m](...e.a);
-    } catch { /* sonido que no aplica sin pantalla */ }
-  }
-  return wavBlob(await off.startRendering());
-}
-
-// Toma el control de un celular: sin bucle propio, reloj manejado desde acá,
-// pantalla grande para que el video salga nítido
-function takeOver(frame, clock) {
-  const w = frame.contentWindow;
-  const g = w.game;
-  g.next = () => {};
-  const t0 = w.performance.now();
-  w.performance.now = () => t0 + clock() * 1000;
-  const G = w.document.createElement('canvas');
-  G.width = 1920;
-  G.height = 1080;
-  g.canvas = G;
-  g.ctx = G.getContext('2d');
-  g.scale = 6;
-  g.resize = () => {};
-  g.input.touchMode = true;
-  g.fade = 0;
-  return { w, g, G };
 }
 
 // Momentos forzados (desde que empieza la pelea) para que pase de todo en poco tiempo
@@ -208,26 +132,6 @@ function tap(v, ph, at, t) {
   v.restore();
 }
 
-function ribbon(v, str, x, y, size) {
-  const w = str.length * size * 0.62 + size * 2;
-  v.save();
-  v.translate(x, y);
-  v.rotate(-0.04);
-  v.fillStyle = '#ffe66b';
-  v.beginPath();
-  v.moveTo(-w / 2 - size * 0.5, -size * 0.9);
-  v.lineTo(w / 2 + size * 0.5, -size * 0.9);
-  v.lineTo(w / 2, size * 0.75);
-  v.lineTo(-w / 2, size * 0.75);
-  v.closePath();
-  v.fill();
-  v.lineWidth = 1.4;
-  v.strokeStyle = '#1b1224';
-  v.stroke();
-  text(v, str, 0, size * 0.36, { size, weight: 900, align: 'center', color: '#1b1224' });
-  v.restore();
-}
-
 function caption(info) {
   if (info.phase === 'title') return 'Tocás JUGAR EN LÍNEA…';
   if (info.phase === 'search') return '…y el juego te busca un rival';
@@ -279,18 +183,6 @@ function background(v, GA, GB, vertical) {
     v.drawImage(GA, -W * 0.25, 0, W, Hc);
     v.drawImage(GB, W * 0.25, 0, W, Hc);
   }
-  v.restore();
-}
-
-function endCard(v, t, k, W, H) {
-  if (k <= 0) return;
-  v.fillStyle = `rgba(10,8,24,${0.78 * k})`;
-  v.fillRect(0, 0, W, H);
-  v.save();
-  v.globalAlpha = k;
-  drawLogo(v, W / 2, H / 2 - 30, t, 1);
-  text(v, '¡JUGÁ EN LÍNEA GRATIS!', W / 2, H / 2 + 22, { size: 12, weight: 900, align: 'center', color: '#ffe66b', stroke: '#1b1224', strokeW: 3 });
-  text(v, 'pokechampions.vercel.app', W / 2, H / 2 + 40, { size: 9, weight: 900, align: 'center', color: '#ffffff', stroke: '#1b1224', strokeW: 2.4 });
   v.restore();
 }
 

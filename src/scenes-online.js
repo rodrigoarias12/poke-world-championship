@@ -558,7 +558,8 @@ export class OnlineBattleScene {
     } else {
       // El invitado muestra la pelea y manda sus botones
       this.battle = new GuestBattle(game, cfg);
-      this.counts = [0, 0, 0, 0, 0];
+      // 5 ataques + GIGAMAX
+      this.counts = [0, 0, 0, 0, 0, 0];
       this.lastSent = '';
       this.inputAcc = 0;
       this.botUse = -1;
@@ -676,12 +677,14 @@ export class OnlineBattleScene {
       const u = f.intent.use;
       if (u >= 0 && u !== this.botUse) this.counts[u]++;
       this.botUse = u;
+      this.counts[5] = this.battle.gmaxPress || 0;
     } else if (!this.menuOpen && !this.result) {
       [mx, my] = inp.moveVector();
       for (let i = 0; i < 5; i++) {
         if (inp.isDown(`m${i}`)) h |= 1 << i;
         if (inp.wasPressed(`m${i}`)) this.counts[i]++;
       }
+      if (inp.wasPressed('gx')) this.counts[5]++;
     }
     mx = Math.round(mx * 100) / 100;
     my = Math.round(my * 100) / 100;

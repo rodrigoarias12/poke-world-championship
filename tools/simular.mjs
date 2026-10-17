@@ -62,6 +62,8 @@ for (let i = 0; i < N; i++) {
     arena: ARENAS[i % 3],
     round: 'PRUEBA',
     seed: i + 1,
+    // GMAX=0 apaga el Gigamax (para comparar con la base de antes)
+    gmax: process.env.GMAX !== '0',
   };
   const b = new Battle(game, cfg);
   // Las dos IA pelean entre sí
@@ -74,6 +76,6 @@ for (let i = 0; i < N; i++) {
     if (k % 4 === 0) b.render(fakeCtx);
   }
   const hp = b.fighters.map((f) => `${f.key}:${Math.round(f.hp)}`).join(',');
-  lines.push(`${i} ${cfg.teamA.join('+')} vs ${cfg.teamB.join('+')} -> ${b.state} ganador=${b.winner?.side ?? '-'} ticks=${k} hp=${hp} ko=${b.teams.map((t) => t.fainted.length).join('/')}`);
+  lines.push(`${i} ${cfg.teamA.join('+')} vs ${cfg.teamB.join('+')} -> ${b.state} ganador=${b.winner?.side ?? '-'} ticks=${k} hp=${hp} ko=${b.teams.map((t) => t.fainted.length).join('/')}${b.gmaxOn ? ` gmax=${b.gx.map((g) => (g.used ? 1 : 0)).join('/')}` : ''}`);
 }
 console.log(lines.join('\n'));

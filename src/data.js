@@ -218,6 +218,36 @@ export function allSpriteIds() {
 
 export const KEY_LABELS = ['1', '2', 'ESP', 'Q', 'E'];
 
+// --------------------------------------------------------------- Gigamax
+// Una vez por pelea cada lado puede volverse gigante por unos segundos.
+// Los que tienen forma Gigamax cambian de aspecto (sprite propio) y su ataque
+// definitivo pasa a ser su ataque Gigamax; los demás hacen Dinamax (crecen).
+export const GMAX = {
+  pikachu: { id: 10199, move: 'Gigatronada' },
+  charizard: { id: 10196, move: 'Gigallamarada' },
+  blastoise: { id: 10197, move: 'Gigacañonazo' },
+  venusaur: { id: 10195, move: 'Gigalianas' },
+  gengar: { id: 10202, move: 'Gigaaparición' },
+  snorlax: { id: 10206, move: 'Gigarrecolección' },
+  lapras: { id: 10204, move: 'Gigamelodía' },
+  eevee: { id: 10205, move: 'Gigaternura' },
+};
+
+// Ataque Dinamax de los que no tienen forma Gigamax (según su tipo)
+export const MAX_MOVE = {
+  fuego: 'Maxignición', agua: 'Maxichorro', electrico: 'Maxitormenta', planta: 'Maxiflora',
+  psiquico: 'Maxionda Mental', fantasma: 'Maxiespectro', hada: 'Maxiestela', lucha: 'Maxipuño',
+  roca: 'Maxilito', normal: 'Maxiataque', hielo: 'Maxihelada',
+};
+
+export const GMAX_FULL = 100; // carga necesaria
+export const GMAX_TIME = 14; // segundos de gigante
+export const GMAX_SIZE = 1.9; // cuánto crece
+
+export function gmaxSpriteIds() {
+  return Object.values(GMAX).map((g) => g.id);
+}
+
 export const DIFFICULTY = {
   facil: { label: 'IA FÁCIL', color: '#4cc44a', reaction: 0.6, dodge: 0.05, lead: 0, aggression: 0.3, aimError: 0.35, ultDelay: 4, dmgMult: 0.65 },
   normal: { label: 'IA NORMAL', color: '#3fa7ff', reaction: 0.35, dodge: 0.3, lead: 0.4, aggression: 0.55, aimError: 0.16, ultDelay: 1.5, dmgMult: 0.85 },
