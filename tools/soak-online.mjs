@@ -11,7 +11,7 @@ const fakeCtx = new Proxy({}, {
     if (k === 'measureText') return (s) => ({ width: String(s).length * 2.5 });
     if (k === 'createImageData') return (w, h) => ({ data: new Uint8ClampedArray(w * h * 4) });
     if (k === 'getImageData') return (x, y, w, h) => ({ data: new Uint8ClampedArray(w * h * 4) });
-    if (k === 'createLinearGradient') return () => ({ addColorStop: noop });
+    if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => ({ addColorStop: noop });
     if (k in t) return t[k];
     return noop;
   },

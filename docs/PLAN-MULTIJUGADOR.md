@@ -12,7 +12,9 @@ Objetivo del MVP: **dos personas, cada una con su celular, juegan una pelea en l
 | Canal | Un canal confiable y ordenado (JSON) | Simple y suficiente en Wi-Fi; canal no confiable solo si aparecen trabas. |
 | Efectos y sonidos | El anfitrión graba las llamadas de efectos/sonido y las manda en cada snapshot | El invitado ve exactamente lo mismo sin reescribir el motor. |
 | Lados | El invitado juega a la derecha (sin espejar) | Espejar tocaría todo (arena, efectos, presentaciones). |
-| Sala | Código de 4 cifras + link `?sala=1234` | Teclado numérico grande en pantalla, fácil para chicos. |
+| Emparejamiento | Automático: "lugares de espera" numerados en PeerJS Cloud (`pokechamp-v1-cola-N`) | Sin servidor propio. El primero ocupa un lugar libre y espera; el siguiente lo encuentra ocupado y se conecta. Al armarse la pareja el lugar se libera. Quien espera en un lugar que no es el 1 revisa los anteriores cada 6 s, así nadie queda esperando solo. Si el rival se va antes de pelear, se vuelve a buscar solo. |
+| Invitar | Código de 4 cifras + link `?sala=1234` (opción secundaria) | Para jugar con alguien en particular. Teclado numérico grande en pantalla, fácil para chicos. |
+| Equipo | El último que usaste queda guardado en el celular | Buscar rival es un solo toque; se puede cambiar mientras busca. |
 | Pausa en línea | No hay; salir de la app termina la partida (MVP) | Reconexión en una fase posterior. |
 
 ## Fases
@@ -22,4 +24,5 @@ Objetivo del MVP: **dos personas, cada una con su celular, juegan una pelea en l
 2. **Preparar el código** (sin cambiar el juego de 1 jugador): controladores Local/IA/Remoto, reglas sin sesgo de lado, estadísticas por lado, grabador de efectos, serializador de estado. Verificado con una prueba "golden master" de 60 peleas.
 3. **Multijugador mínimo**: lobby (EN LÍNEA → CREAR / UNIRSE), elección de equipos, anfitrión con snapshots a 30 Hz, invitado con interpolación adaptativa, revancha, desconexión vuelve al lobby. Pruebas: dos iframes conectados de verdad + 200 peleas automáticas con lag simulado.
 4. **Pulido de celular/audio** (según los datos de la fase 0): gritos MP3 y música por Web Audio en iPhone, app en pantalla de inicio, áreas seguras, animaciones en iPhone.
+3b. **Jugar sin fricción** (hecho): JUGAR EN LÍNEA siempre visible y primero en el menú, emparejamiento automático, pantalla VS, revancha con los mismos equipos ("¡Tu rival quiere la revancha!"), "OTRO RIVAL". Pruebas: `tools/duo.html?modo=buscar&n=4` (dos parejas a la vez) y `?cola=xyz` para no cruzarse con jugadores reales.
 5. **Robustez**: reconexión, predicción de movimiento del invitado, canal no confiable, señalización de respaldo.

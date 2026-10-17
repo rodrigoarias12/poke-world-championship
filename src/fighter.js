@@ -271,6 +271,29 @@ export class Fighter {
     ctx.beginPath();
     ctx.ellipse(this.x, this.y + 1, this.r * 1.05 * sh, this.r * 0.4 * sh, 0, 0, Math.PI * 2);
     ctx.fill();
+    // Aro de color en los pies: naranja el tuyo, azul el rival (como en la pantalla VS)
+    if (this.alive && this.invisible <= 0) {
+      const mine = this.side === b.localSide;
+      const rx = this.r * 1.25 * sh;
+      const ry = this.r * 0.5 * sh;
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.85;
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = mine ? '#ffb43b' : '#5ab4ff';
+      ctx.beginPath();
+      ctx.ellipse(this.x, this.y + 1, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // Flechita delante del aro, hacia donde mira
+      const fx = this.x + this.facing * rx;
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.beginPath();
+      ctx.moveTo(fx + this.facing * 2.2, this.y + 1);
+      ctx.lineTo(fx, this.y - 0.6);
+      ctx.lineTo(fx, this.y + 2.6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
     if (dig) {
       // Bajo tierra: solo se ve el montículo que avanza
       ctx.fillStyle = '#8a6a44';

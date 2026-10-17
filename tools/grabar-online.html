@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Grabar video en línea</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; background: #111; color: #ddd; font: 14px system-ui; }
+    .celus { display: flex; gap: 8px; padding: 8px; }
+    /* En horizontal, si no el juego pide girar el celular */
+    iframe { width: 480px; height: 270px; border: 0; background: #000; }
+    #estado { padding: 0 8px; }
+    canvas { max-width: 45vw; margin: 8px; }
+  </style>
+</head>
+<body>
+  <!-- Dos celulares conectados de verdad (PeerJS), grabados cuadro a cuadro.
+       Los cuadros y el audio van al receptor local (puerto 5174). -->
+  <div class="celus">
+    <iframe id="a"></iframe>
+    <iframe id="b"></iframe>
+  </div>
+  <div id="estado">Cargando…</div>
+  <script type="module" src="grabar-online.js"></script>
+</body>
+</html>

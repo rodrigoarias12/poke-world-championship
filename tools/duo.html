@@ -2,25 +2,42 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Dos jugadores (prueba)</title>
+  <title>Varios jugadores (prueba)</title>
   <style>
     html, body { margin: 0; height: 100%; background: #111; }
-    body { display: flex; gap: 6px; padding: 6px; box-sizing: border-box; }
-    iframe { flex: 1; border: 0; height: 100%; background: #000; }
+    body { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px; box-sizing: border-box; }
+    iframe { width: 100%; height: 100%; border: 0; background: #000; }
   </style>
 </head>
 <body>
-  <!-- Dos "celulares" lado a lado en la misma página: los dos siguen animándose -->
-  <iframe id="a"></iframe>
-  <iframe id="b"></iframe>
+  <!-- Varios "celulares" en la misma página: todos siguen animándose.
+       ?modo=codigo  → uno invita con código y el otro entra con ese código
+       ?modo=buscar  → todos buscan rival solos (n = cuántos, por defecto 2) -->
   <script>
     const p = new URLSearchParams(location.search);
     const page = p.get('page') || '../red.html';
-    const code = p.get('code') || String(1000 + Math.floor(Math.random() * 9000));
     const extra = p.get('extra') ? `&${p.get('extra')}` : '';
-    document.getElementById('a').src = `${page}?crear=${code}${extra}`;
-    // El invitado entra un poco después, cuando la sala ya existe
-    setTimeout(() => { document.getElementById('b').src = `${page}?sala=${code}${extra}`; }, 2500);
+    const modo = p.get('modo') || 'codigo';
+    const n = Number(p.get('n')) || 2;
+    const gap = Number(p.get('gap') || 1500);
+    const frames = [];
+    for (let i = 0; i < (modo === 'buscar' ? n : 2); i++) {
+      const f = document.createElement('iframe');
+      f.id = 'abcdefgh'[i];
+      document.body.appendChild(f);
+      frames.push(f);
+    }
+    document.body.style.gridTemplateRows = `repeat(${Math.ceil(frames.length / 2)}, 1fr)`;
+    if (modo === 'buscar') {
+      // extra1, extra2… agregan parámetros solo a ese celular (por ejemplo, otro equipo)
+      const own = (i) => (p.get(`extra${i + 1}`) ? `&${p.get(`extra${i + 1}`)}` : '');
+      frames.forEach((f, i) => setTimeout(() => { f.src = `${page}?buscar${extra}${own(i)}`; }, i * gap));
+    } else {
+      const code = p.get('code') || String(1000 + Math.floor(Math.random() * 9000));
+      frames[0].src = `${page}?crear=${code}${extra}`;
+      // El invitado entra un poco después, cuando la sala ya existe
+      setTimeout(() => { frames[1].src = `${page}?sala=${code}${extra}`; }, 2500);
+    }
   </script>
 </body>
 </html>

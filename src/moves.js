@@ -676,6 +676,33 @@ function zigzag(ctx, t, len = 7) {
   ctx.stroke();
 }
 
+// Halo de luz suave (se suma a lo que hay atrás, como una luz de verdad)
+const glowCache = new Map();
+function glowSprite(color) {
+  let c = glowCache.get(color);
+  if (!c) {
+    c = document.createElement('canvas');
+    c.width = c.height = 32;
+    const g = c.getContext('2d');
+    const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gr.addColorStop(0, color);
+    gr.addColorStop(0.35, color + '88');
+    gr.addColorStop(1, color + '00');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 32, 32);
+    glowCache.set(color, c);
+  }
+  return c;
+}
+
+export function glow(ctx, x, y, r, color, alpha = 0.5) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(glowSprite(color), x - r, y - r, r * 2, r * 2);
+  ctx.restore();
+}
+
 export function renderProjectiles(ctx, b, t) {
   for (const p of b.projectiles) {
     ctx.fillStyle = 'rgba(5,20,50,0.3)';
@@ -686,6 +713,7 @@ export function renderProjectiles(ctx, b, t) {
     const y = p.y - p.h;
     const ang = Math.atan2(p.vy, p.vx);
     const colors = TYPE_COLORS[p.fx] || TYPE_COLORS.normal;
+    glow(ctx, x, y, p.r * 4.5, colors[2], 0.55);
     switch (p.proj) {
       case 'fireball':
       case 'bigfire': {

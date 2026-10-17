@@ -1,10 +1,50 @@
 import { VW, VH } from './config.js';
 import { TYPES, DIFFICULTY, KEY_LABELS } from './data.js';
-import { text, textWidth, roundRect, bar, drawCreature, backOut } from './ui.js';
+import { text, textWidth, roundRect, drawCreature, backOut } from './ui.js';
 
-function hpColor(f) {
+// Colores de la barra de vida: [brillo, color, sombra]
+function hpColors(f) {
   const k = f.hp / f.maxHp;
-  return k > 0.5 ? '#4fd65a' : k > 0.25 ? '#f2c318' : '#ff4b4b';
+  if (k > 0.5) return ['#a6f7a0', '#4fd65a', '#2a9440'];
+  if (k > 0.25) return ['#fff0a0', '#f2c318', '#b88400'];
+  return ['#ffb0b0', '#ff4b4b', '#b01f30'];
+}
+
+// Barra de vida redondeada, con degradé, brillo, marcas y el daño reciente en blanco
+function hpBar(ctx, x, y, w, h, f, rtl, t) {
+  const frac = Math.max(0, Math.min(1, f.hp / f.maxHp));
+  const ghost = Math.max(0, Math.min(1, f.ghostHp / f.maxHp));
+  roundRect(ctx, x - 1, y - 1, w + 2, h + 2, (h + 2) / 2);
+  ctx.fillStyle = '#1b1224';
+  ctx.fill();
+  ctx.save();
+  roundRect(ctx, x, y, w, h, h / 2);
+  ctx.clip();
+  ctx.fillStyle = '#3a2f52';
+  ctx.fillRect(x, y, w, h);
+  const seg = (k, fill) => {
+    const fw = k * w;
+    ctx.fillStyle = fill;
+    ctx.fillRect(rtl ? x + w - fw : x, y, fw, h);
+  };
+  if (ghost > frac) seg(ghost, '#fff4d6');
+  const [hi, mid, lo] = hpColors(f);
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, hi);
+  g.addColorStop(0.45, mid);
+  g.addColorStop(1, lo);
+  seg(frac, g);
+  // Con poca vida, la barra late
+  if (frac <= 0.25 && frac > 0) {
+    ctx.globalAlpha = 0.25 + Math.sin(t * 10) * 0.25;
+    seg(frac, '#ffffff');
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillRect(x, y + 0.5, w, h * 0.28);
+  ctx.fillStyle = 'rgba(20,10,30,0.3)';
+  for (let i = 1; i < 10; i++) ctx.fillRect(x + (w * i) / 10 - 0.25, y + h * 0.5, 0.5, h * 0.5);
+  ctx.restore();
 }
 
 function miniBall(ctx, x, y, alive) {
@@ -62,18 +102,32 @@ function sidePanel(ctx, b, side, t) {
     miniBall(ctx, bx, b.online ? 37 : 32, !team.fainted.includes(i));
   });
 
-  // Nombre, vida y barra
+  // Nombre, vida y barra (sobre una placa inclinada)
   const x0 = left ? 30 : VW - 30;
   const barW = 116;
   const bx = left ? x0 : x0 - barW;
+  ctx.save();
+  if (!left) {
+    ctx.translate(VW, 0);
+    ctx.scale(-1, 1);
+  }
+  const plate = ctx.createLinearGradient(26, 0, 152, 0);
+  plate.addColorStop(0, 'rgba(14,10,26,0.72)');
+  plate.addColorStop(1, 'rgba(14,10,26,0.25)');
+  ctx.fillStyle = plate;
+  ctx.beginPath();
+  ctx.moveTo(24, 1.5);
+  ctx.lineTo(152, 1.5);
+  ctx.lineTo(147, 19.5);
+  ctx.lineTo(24, 19.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
   const nameSize = f.name.length > 12 ? 5 : 6.2;
   text(ctx, f.name, x0, 9, { size: nameSize, weight: 900, align: left ? 'left' : 'right', color: '#fff', stroke: '#1b1224', strokeW: 1.6 });
   const hpStr = `♥ ${Math.ceil(f.hp)}`;
   text(ctx, hpStr, left ? bx + barW : bx, 9, { size: 6, weight: 900, align: left ? 'right' : 'left', color: '#ff7a8a', stroke: '#1b1224', strokeW: 1.6 });
-  roundRect(ctx, bx - 0.8, 11.2, barW + 1.6, 5.6, 1.5);
-  ctx.fillStyle = '#1b1224';
-  ctx.fill();
-  bar(ctx, bx, 12, barW, 4, f.hp / f.maxHp, hpColor(f), { ghost: f.ghostHp / f.maxHp, rtl: !left });
+  hpBar(ctx, bx, 11.6, barW, 4.6, f, !left, t);
   if (f.boss) {
     text(ctx, 'JEFE', left ? bx : bx + barW, 22, { size: 3.6, weight: 900, align: left ? 'left' : 'right', color: '#ff7ac4', stroke: '#1b1224', strokeW: 1 });
   }

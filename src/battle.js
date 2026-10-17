@@ -1,6 +1,6 @@
 import { VW, VH } from './config.js';
 import { typeMultiplier, CREATURES, DIFFICULTY } from './data.js';
-import { Arena } from './arena.js';
+import { Arena, vignette } from './arena.js';
 import { Effects, TYPE_COLORS } from './effects.js';
 import { Fighter } from './fighter.js';
 import { LocalController, AIController, applyButtons } from './controllers.js';
@@ -412,6 +412,7 @@ export class Battle {
       ctx.fillRect(-10, -10, VW + 20, VH + 20);
     }
     ctx.restore();
+    vignette(ctx);
 
     if (this.flashFx && this.flashFx.a > 0) {
       ctx.save();

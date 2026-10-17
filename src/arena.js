@@ -13,6 +13,7 @@ const THEMES = {
     edge: '#d8e4ec',
     edgeDark: '#9fb3c2',
     rim: '#5d7a90',
+    caustic: 0.2,
   },
   lago: {
     name: 'LAGO ESMERALDA',
@@ -22,6 +23,7 @@ const THEMES = {
     edge: '#c9b48a',
     edgeDark: '#9c8660',
     rim: '#6b5a3c',
+    caustic: 0.16,
   },
   noche: {
     name: 'MAR NOCTURNO',
@@ -31,6 +33,7 @@ const THEMES = {
     edge: '#3a3a5c',
     edgeDark: '#26263f',
     rim: '#deb248',
+    caustic: 0.07,
   },
 };
 
@@ -178,8 +181,60 @@ function renderBackground(theme, seed, platforms, balls) {
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.fillRect(0, 7 * RES, c.width, 2 * RES);
 
-  for (const b of balls) drawBallPlatform(ctx, b.x, b.y, b.r);
-  for (const p of platforms) drawPlatform(ctx, p.x, p.y, p.r, rand);
+  // Luz suave arriba y más profundidad abajo
+  const g = ctx.createLinearGradient(0, 0, 0, c.height);
+  g.addColorStop(0, 'rgba(255,255,255,0.07)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0)');
+  g.addColorStop(1, 'rgba(0,10,40,0.18)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 9 * RES, c.width, c.height - 14 * RES);
+
+  const fg = makeCanvas(VW * RES, VH * RES);
+  const fctx = fg.getContext('2d');
+  for (const b of balls) drawBallPlatform(fctx, b.x, b.y, b.r);
+  for (const p of platforms) drawPlatform(fctx, p.x, p.y, p.r, rand);
+  return { bg: c, fg };
+}
+
+// Red de luz que se mueve en el fondo del agua (se arma una sola vez).
+// Son los bordes de celdas de Voronoi en una baldosa que se repite sin cortes.
+const TILE = 96;
+let causticTile = null;
+
+function makeCaustics() {
+  const n = TILE * RES;
+  const c = makeCanvas(n, n);
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(n, n);
+  const rand = rng(4242);
+  const pts = [];
+  for (let i = 0; i < 9; i++) pts.push([rand() * n, rand() * n]);
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      let d1 = 1e9;
+      let d2 = 1e9;
+      for (const [px, py] of pts) {
+        let dx = Math.abs(x - px);
+        let dy = Math.abs(y - py);
+        if (dx > n / 2) dx = n - dx;
+        if (dy > n / 2) dy = n - dy;
+        const d = dx * dx + dy * dy;
+        if (d < d1) {
+          d2 = d1;
+          d1 = d;
+        } else if (d < d2) d2 = d;
+      }
+      const edge = Math.sqrt(d2) - Math.sqrt(d1);
+      // Bordes anchos y suaves (luz difusa, no líneas finas)
+      const k = Math.max(0, 1 - edge / (5 * RES));
+      const o = (y * n + x) * 4;
+      img.data[o] = 230;
+      img.data[o + 1] = 248;
+      img.data[o + 2] = 255;
+      img.data[o + 3] = Math.round(Math.pow(k, 2.6) * 255);
+    }
+  }
+  ctx.putImageData(img, 0, 0);
   return c;
 }
 
@@ -202,13 +257,41 @@ export class Arena {
       { x: VW + 4, y: 110 + rand() * 30, r: 28 },
     ];
     this.platforms.sort((a, b) => a.y - b.y);
-    this.bg = renderBackground(theme, seed, this.platforms, this.balls);
+    const layers = renderBackground(theme, seed, this.platforms, this.balls);
+    this.bg = layers.bg;
+    this.fg = layers.fg;
     this.ice = [];
     this.glints = [];
     for (let i = 0; i < 70; i++) {
       this.glints.push({ x: rand() * VW, y: 10 + rand() * (VH - 16), w: 2 + rand() * 4, phase: rand() * 6.28, speed: 0.6 + rand() * 1.4 });
     }
     this.spawns = [{ x: 70, y: 110 }, { x: 250, y: 92 }];
+  }
+
+  // Dos capas de luz que se cruzan despacio
+  drawCaustics(ctx, t) {
+    if (!causticTile) causticTile = makeCaustics();
+    if (!this.pattern) this.pattern = ctx.createPattern(causticTile, 'repeat');
+    if (!this.pattern) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 9, VW, VH - 14);
+    ctx.clip();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = this.pattern;
+    const layers = [[4.2, 2.2, 1, 1], [-3.1, 3, 1.45, 0.75]];
+    for (const [vx, vy, scale, a] of layers) {
+      const span = TILE * scale;
+      const ox = (((t * vx) % span) + span) % span;
+      const oy = (((t * vy) % span) + span) % span;
+      ctx.save();
+      ctx.globalAlpha = this.T.caustic * a;
+      ctx.translate(ox - span, oy - span);
+      ctx.scale(scale / RES, scale / RES);
+      ctx.fillRect(0, 0, ((VW + span * 2) * RES) / scale, ((VH + span * 2) * RES) / scale);
+      ctx.restore();
+    }
+    ctx.restore();
   }
 
   // ¿Está este punto sobre una plataforma?
@@ -241,6 +324,21 @@ export class Arena {
 
   drawWater(ctx, t) {
     ctx.drawImage(this.bg, 0, 0, VW, VH);
+    this.drawCaustics(ctx, t);
+    // Espuma donde las plataformas tocan el agua
+    ctx.lineWidth = 0.8;
+    [...this.platforms, ...this.balls].forEach((p, i) => {
+      const side = this.balls.includes(p) ? 5 : 4;
+      const w = Math.sin(t * 2.2 + i * 1.7) * 0.7;
+      ctx.strokeStyle = 'rgba(235,248,255,0.4)';
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y + side + 0.6, p.r + 1.6 + w, p.r * 0.55 + 1.1 + w * 0.6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(235,248,255,0.16)';
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y + side + 0.8, p.r + 4 - w, p.r * 0.55 + 2.8 - w * 0.6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    });
     // Destellos que se mueven
     for (const g of this.glints) {
       const a = Math.sin(t * g.speed + g.phase);
@@ -252,6 +350,7 @@ export class Arena {
       ctx.fillRect(Math.round(x), Math.round(g.y), g.w, 0.7);
     }
     ctx.globalAlpha = 1;
+    ctx.drawImage(this.fg, 0, 0, VW, VH);
     // Hielo de Rayo Hielo
     for (const i of this.ice) {
       ctx.globalAlpha = Math.min(1, i.life);
@@ -268,4 +367,19 @@ export class Arena {
     }
     ctx.globalAlpha = 1;
   }
+}
+
+let vignetteCanvas = null;
+
+export function vignette(ctx) {
+  if (!vignetteCanvas) {
+    vignetteCanvas = makeCanvas(VW, VH);
+    const v = vignetteCanvas.getContext('2d');
+    const g = v.createRadialGradient(VW / 2, VH / 2, VH * 0.45, VW / 2, VH / 2, VW * 0.62);
+    g.addColorStop(0, 'rgba(6,4,24,0)');
+    g.addColorStop(1, 'rgba(6,4,24,0.42)');
+    v.fillStyle = g;
+    v.fillRect(0, 0, VW, VH);
+  }
+  ctx.drawImage(vignetteCanvas, 0, 0, VW, VH);
 }

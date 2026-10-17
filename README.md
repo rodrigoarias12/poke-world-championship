@@ -22,6 +22,16 @@ jefe Mega en la final. Nació para jugar en familia, inspirado en los videos de
 En tableta o celular aparecen un joystick y botones en pantalla. Los ataques apuntan
 solos al rival.
 
+## Jugar en línea
+
+**JUGAR EN LÍNEA** te junta solo con otra persona que esté buscando, sin códigos ni
+salas: usa tu último equipo (lo puedes cambiar mientras busca), aparece la pantalla VS y
+arranca la pelea. Al terminar puedes pedir la revancha o buscar otro rival.
+
+Para jugar con alguien en particular, **INVITAR A UN AMIGO** da un link (o un código de
+4 números para **TENGO UN CÓDIGO**). Los dos celulares se conectan directo (WebRTC); ver
+`docs/PLAN-MULTIJUGADOR.md`.
+
 ## Correrlo en tu compu
 
 No hace falta instalar nada: es HTML y JavaScript sin compilar.

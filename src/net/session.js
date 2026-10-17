@@ -14,6 +14,8 @@ export class Session {
     this.myTeam = null;
     this.theirTeam = null;
     this.rtt = 0;
+    // El rival ya mandó su equipo (por ejemplo, ya pidió la revancha)
+    this.rivalReady = false;
     this.closed = false;
     this.lostReason = null;
     this.versionMismatch = false;
@@ -59,8 +61,13 @@ export class Session {
         return;
       case 'team':
         this.theirTeam = m.keys;
+        this.rivalReady = true;
         this.emit('team', m);
         this.maybeStart();
+        return;
+      case 'start':
+        this.rivalReady = false;
+        this.emit('start', m);
         return;
       case 'bye':
         this.lost('se fue');
@@ -87,13 +94,9 @@ export class Session {
     };
     this.myTeam = null;
     this.theirTeam = null;
+    this.rivalReady = false;
     this.send(start);
     this.emit('start', start);
-  }
-
-  resetTeams() {
-    this.myTeam = null;
-    this.theirTeam = null;
   }
 
   lost(reason) {
