@@ -185,8 +185,9 @@ export async function grabar(game, { seconds = 30, frames = null, onProgress } =
   // El jugador también lo maneja la IA; los definitivos los dispara el guion
   const aiP = new AI(b, 0, 'dificil');
   aiP.p = { ...aiP.p, ultDelay: 999 };
-  b.ai.p = { ...b.ai.p, ultDelay: 999, dodge: 0.15 };
-  b.playerIntent = () => aiP.update(1 / 60);
+  const enemyAI = b.controllers[1].ai;
+  enemyAI.p = { ...enemyAI.p, ultDelay: 999, dodge: 0.15 };
+  b.setController(0, { side: 0, isAI: false, update: () => aiP.update(1 / 60) });
   const script = makeScript(b);
 
   try {

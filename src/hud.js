@@ -47,11 +47,19 @@ function sidePanel(ctx, b, side, t) {
   drawCreature(ctx, f.key, pcx, pcy + 2, 20, { faceLeft: !left, boss: f.boss, t: f.animT });
   ctx.restore();
 
+  // En línea: marca cuál es el Pokémon de este celular
+  if (b.online && side === b.localSide) {
+    roundRect(ctx, pcx - 8, pcy + 9.5, 16, 7, 3);
+    ctx.fillStyle = '#ffe66b';
+    ctx.fill();
+    text(ctx, 'TÚ', pcx, pcy + 15, { size: 5, weight: 900, align: 'center', color: '#1b1224' });
+  }
+
   // Equipo (Poké Balls)
   const team = b.teams[side];
   team.keys.forEach((_, i) => {
     const bx = left ? 6 + i * 6.5 : VW - 6 - i * 6.5;
-    miniBall(ctx, bx, 32, !team.fainted.includes(i));
+    miniBall(ctx, bx, b.online ? 37 : 32, !team.fainted.includes(i));
   });
 
   // Nombre, vida y barra
@@ -100,7 +108,7 @@ export function renderHUD(ctx, b, t) {
   sidePanel(ctx, b, 1, t);
 
   // Centro: dificultad y pausa
-  const d = DIFFICULTY[b.difficulty];
+  const d = b.online ? { label: 'EN LÍNEA', color: '#2e9e8f' } : DIFFICULTY[b.difficulty];
   const dw = textWidth(ctx, d.label, 3) + 5;
   roundRect(ctx, VW / 2 - dw / 2, 4, dw, 6, 3);
   ctx.fillStyle = d.color;

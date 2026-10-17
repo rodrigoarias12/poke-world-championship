@@ -260,7 +260,7 @@ export function updateAction(f, b, dt) {
         damp(f, 0.6);
         a.pt -= dt;
         if (a.pt <= 0) {
-          if (a.n > 0 || f.side === 1) {
+          if (a.n > 0 || f.isAI) {
             const dx = opp.x - f.x;
             const dy = opp.y - f.y;
             const d = Math.hypot(dx, dy) || 1;
@@ -315,7 +315,7 @@ export function updateAction(f, b, dt) {
         const mx = f.x + Math.cos(a.angle) * f.r;
         const my = f.y - f.mouthH() + Math.sin(a.angle) * f.r;
         const ang = Math.random() * Math.PI * 2;
-        b.effects.particles.push({ x: mx + Math.cos(ang) * 14, y: my + Math.sin(ang) * 10, vx: -Math.cos(ang) * 50, vy: -Math.sin(ang) * 40, life: 0.25, max: 0.25, size: 1.8, color: colors[1], grav: 0, drag: 0 });
+        b.effects.add({ x: mx + Math.cos(ang) * 14, y: my + Math.sin(ang) * 10, vx: -Math.cos(ang) * 50, vy: -Math.sin(ang) * 40, life: 0.25, max: 0.25, size: 1.8, color: colors[1], grav: 0, drag: 0 });
         if (a.charge <= 0) {
           a.t = 0;
           b.audio.play('super');
@@ -364,7 +364,7 @@ export function updateAction(f, b, dt) {
         for (let i = 0; i < 3; i++) {
           const d = Math.random() * a.len;
           const spread = (d / a.len) * m.width * 0.8;
-          b.effects.particles.push({
+          b.effects.add({
             x: sx + cx * d + (Math.random() - 0.5) * spread,
             y: sy + cy * d - hy + (Math.random() - 0.5) * spread,
             vx: cx * 90, vy: cy * 90 - 10, life: 0.25, max: 0.25, size: 2 + Math.random() * 2,
@@ -429,7 +429,7 @@ export function updateAction(f, b, dt) {
         // Se dirige hacia el rival (o donde lo mande el jugador)
         let mx = f.intent.mx;
         let my = f.intent.my;
-        if (f.side === 1 || Math.hypot(mx, my) < 0.2) {
+        if (f.isAI || Math.hypot(mx, my) < 0.2) {
           const dx = opp.x - f.x;
           const dy = opp.y - f.y;
           const d = Math.hypot(dx, dy) || 1;
@@ -515,7 +515,7 @@ function slashFx(b, x, y, colors, dir, i = 0) {
   for (let k = 0; k < 12; k++) {
     const t = k / 11;
     const ang = base + flip * (-1.1 + t * 2.2);
-    b.effects.particles.push({
+    b.effects.add({
       x: x + Math.cos(ang) * 10,
       y: y + Math.sin(ang) * 7,
       vx: Math.cos(ang) * 20, vy: Math.sin(ang) * 20, life: 0.22, max: 0.22, size: 2.4,

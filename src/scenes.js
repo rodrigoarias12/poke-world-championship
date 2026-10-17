@@ -5,6 +5,24 @@ import { Arena } from './arena.js';
 import { Battle } from './battle.js';
 import { Menu } from './menu.js';
 import { touchLayout, renderTouchControls, PAUSE_RECT } from './hud.js';
+import { OnlineScene, OnlineBattleScene } from './scenes-online.js';
+
+const urlParams = new URLSearchParams(location.search);
+
+// El modo EN LÍNEA aparece con ?online (y queda recordado en este celular)
+function onlineEnabled() {
+  if (urlParams.has('online') || urlParams.has('sala') || urlParams.has('crear')) {
+    try {
+      localStorage.setItem('arena-brava-online', '1');
+    } catch { /* sin almacenamiento */ }
+    return true;
+  }
+  try {
+    return localStorage.getItem('arena-brava-online') === '1';
+  } catch {
+    return false;
+  }
+}
 import { text, textWidth, roundRect, panel, typeBadge, drawCreature, button, inRect, backOut, ease } from './ui.js';
 
 const shuffle = (arr) => {
@@ -228,7 +246,12 @@ export class LoadingScene {
   update(dt) {
     this.t += dt;
     // Sin internet seguimos a los 15 s con los dibujos de respaldo
-    if ((this.finished && this.t > 0.3) || this.t > 15) this.game.setScene(new TitleScene(this.game));
+    if ((this.finished && this.t > 0.3) || this.t > 15) {
+      const g = this.game;
+      if (/^\d{4}$/.test(urlParams.get('sala') || '')) g.setScene(new OnlineScene(g, { join: urlParams.get('sala') }));
+      else if (urlParams.has('crear')) g.setScene(new OnlineScene(g, { create: /^\d{4}$/.test(urlParams.get('crear')) ? urlParams.get('crear') : null }));
+      else g.setScene(new TitleScene(g));
+    }
   }
 
   render(ctx) {
@@ -282,15 +305,14 @@ export class TitleScene {
     this.t = 0;
     this.arena = new Arena('piscina', 3);
     this.parade = ['pikachu', 'charizard', 'lapras', 'gyarados', 'eevee', 'snorlax'];
-    this.menu = new Menu(
-      game,
-      [
-        { label: 'TORNEO', sub: '4 combates y un jefe mega', color: '#ff7a2f', action: () => game.setScene(new TeamScene(game, { mode: 'torneo' })) },
-        { label: 'COMBATE', sub: 'tu equipo contra la IA', color: '#3a8fe0', action: () => game.setScene(new TeamScene(game, { mode: 'libre' })) },
-        { label: 'CÓMO JUGAR', sub: 'teclas y tipos', color: '#7c4fd0', action: () => game.setScene(new HowToScene(game)) },
-      ],
-      { x: 110, y: 100, w: 100, h: 18, gap: 5, size: 7 },
-    );
+    const items = [
+      { label: 'TORNEO', sub: '4 combates y un jefe mega', color: '#ff7a2f', action: () => game.setScene(new TeamScene(game, { mode: 'torneo' })) },
+      { label: 'COMBATE', sub: 'tu equipo contra la IA', color: '#3a8fe0', action: () => game.setScene(new TeamScene(game, { mode: 'libre' })) },
+      { label: 'CÓMO JUGAR', sub: 'teclas y tipos', color: '#7c4fd0', action: () => game.setScene(new HowToScene(game)) },
+    ];
+    const online = onlineEnabled();
+    if (online) items.splice(2, 0, { label: 'EN LÍNEA', sub: 'contra otro celular', color: '#2e9e8f', action: () => game.setScene(new OnlineScene(game)) });
+    this.menu = new Menu(game, items, online ? { x: 110, y: 94, w: 100, h: 15, gap: 4, size: 6.5 } : { x: 110, y: 100, w: 100, h: 18, gap: 5, size: 7 });
     game.audio.music('menu');
   }
 
@@ -358,6 +380,21 @@ export class TeamScene {
     this.champs = loadChampions();
     this.arena = new Arena('noche', 11);
     game.audio.music('menu');
+    this.waiting = false;
+    this.lost = null;
+    this.offs = [];
+    if (mode === 'online') {
+      const s = (this.session = game.session);
+      if (!s || s.closed) this.lost = s?.lostReason || 'cerrado';
+      else {
+        this.offs.push(s.on('start', (start) => game.setScene(new OnlineBattleScene(game, start))));
+        this.offs.push(s.on('lost', (reason) => (this.lost = reason)));
+      }
+    }
+  }
+
+  onExit() {
+    for (const off of this.offs) off();
   }
 
   get selected() {
@@ -384,9 +421,14 @@ export class TeamScene {
   }
 
   done() {
-    if (this.team.length < 3) return;
+    if (this.team.length < 3 || this.waiting) return;
     const g = this.game;
     g.audio.play('confirm');
+    if (this.mode === 'online') {
+      this.waiting = true;
+      this.session.sendTeam(this.team);
+      return;
+    }
     if (this.mode === 'torneo') {
       const used = [];
       const rivals = [];
@@ -404,12 +446,22 @@ export class TeamScene {
 
   back() {
     this.game.audio.play('back');
+    if (this.mode === 'online') this.session?.leave();
     this.game.setScene(new TitleScene(this.game));
   }
 
   update(dt) {
     this.t += dt;
     const inp = this.game.input;
+    if (this.mode === 'online' && (this.waiting || this.lost)) {
+      if (inp.wasPressed('back') || (this.lost && inp.wasPressed('confirm'))) this.back();
+      return;
+    }
+    // Para pruebas automáticas: ?auto elige un equipo al azar
+    if (this.mode === 'online' && urlParams.has('auto') && this.t > 0.6) {
+      if (this.team.length < 3) this.team = pick3();
+      return this.done();
+    }
     const n = ROSTER.length;
     if (inp.wasPressed('right')) this.index = (this.index + 1) % n;
     if (inp.wasPressed('left')) this.index = (this.index - 1 + n) % n;
@@ -426,13 +478,14 @@ export class TeamScene {
 
   onPointerDown(x, y) {
     if (inRect(x, y, this.backRect)) return this.back();
+    if (this.mode === 'online' && (this.waiting || this.lost)) return;
     if (inRect(x, y, this.okRect)) return this.done();
     if (inRect(x, y, this.randRect)) return this.random();
     const slot = (this.slotRects || []).findIndex((r) => inRect(x, y, r));
     if (slot >= 0 && this.team[slot]) return this.toggle(this.team[slot]);
     const i = this.cards.findIndex((r) => inRect(x, y, r));
     if (i >= 0) {
-      if (i === this.index) this.toggle(ROSTER[i]);
+      if (i === this.index || this.game.input.touchMode) this.toggle(ROSTER[i]);
       this.index = i;
       this.game.audio.play('select');
     }
@@ -442,7 +495,7 @@ export class TeamScene {
     const t = this.t;
     this.arena.drawWater(ctx, t);
     dim(ctx, 0.72);
-    title(ctx, this.mode === 'torneo' ? 'ARMA TU EQUIPO · TORNEO' : 'ARMA TU EQUIPO');
+    title(ctx, this.mode === 'torneo' ? 'ARMA TU EQUIPO · TORNEO' : this.mode === 'online' ? 'ARMA TU EQUIPO · EN LÍNEA' : 'ARMA TU EQUIPO');
 
     // Grilla de 16
     this.cards = ROSTER.map((key, i) => {
@@ -542,6 +595,18 @@ export class TeamScene {
     if (!ready) this.okRect = null;
     const hint = this.game.input.touchMode ? 'Toca dos veces para sumar al equipo' : 'Flechas: elegir · ENTER: sumar/quitar · E: ¡listo!';
     text(ctx, hint, VW / 2, 95.5, { size: 3.2, weight: 700, align: 'center', color: 'rgba(255,255,255,0.65)' });
+    if (this.mode === 'online' && (this.waiting || this.lost)) {
+      dim(ctx, 0.78);
+      if (this.lost) {
+        text(ctx, 'Se cortó la conexión', VW / 2, 80, { size: 12, weight: 900, align: 'center', color: '#ff7a8a', stroke: '#1b1224', strokeW: 2.5 });
+        text(ctx, this.lost === 'se fue' ? 'Tu rival salió de la partida.' : 'Revisen que los dos celulares tengan internet.', VW / 2, 96, { size: 5, weight: 700, align: 'center' });
+      } else {
+        text(ctx, '¡Listo!', VW / 2, 70, { size: 14, weight: 900, align: 'center', color: '#ffe66b', stroke: '#1b1224', strokeW: 3 });
+        const rival = this.session?.theirTeam ? 'Tu rival también está listo…' : 'Esperando a que tu rival elija su equipo…';
+        text(ctx, rival, VW / 2, 86, { size: 5.5, weight: 800, align: 'center', alpha: 0.6 + Math.sin(this.t * 4) * 0.4 });
+        this.team.forEach((k, i) => drawCreature(ctx, k, VW / 2 - 36 + i * 36, 112, 26, { t: this.t + i }));
+      }
+    }
     this.backRect = backButton(ctx);
   }
 }

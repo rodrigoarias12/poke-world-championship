@@ -65,11 +65,9 @@ for (let i = 0; i < N; i++) {
   };
   const b = new Battle(game, cfg);
   // Las dos IA pelean entre sí
-  if (b.setController) b.setController(0, 'ai', 'dificil');
-  else {
-    const aiP = new AI(b, 0, 'dificil');
-    b.playerIntent = () => aiP.update(1 / 60);
-  }
+  const aiP = new AI(b, 0, 'dificil');
+  if (b.setController) b.setController(0, { side: 0, isAI: false, update: () => aiP.update(1 / 60) });
+  else b.playerIntent = () => aiP.update(1 / 60);
   let k = 0;
   for (; k < 60 * 300 && b.state !== 'end'; k++) {
     b.update(1 / 60);

@@ -31,6 +31,11 @@ export class Effects {
     this.circles = [];
   }
 
+  // Partícula armada a mano (estela de rayos, cortes, carga)
+  add(p) {
+    this.particles.push(p);
+  }
+
   // Estrella de impacto estilo cómic
   impact(x, y, size, color) {
     this.impacts.push({ x, y, size, color, rot: Math.random() * Math.PI, life: 0.18, max: 0.18 });

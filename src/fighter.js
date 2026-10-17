@@ -78,6 +78,11 @@ export class Fighter {
     return this.battle.fighters[1 - this.side];
   }
 
+  // ¿Lo maneja la IA? (apunta y embiste distinto que un jugador)
+  get isAI() {
+    return !!this.battle.controllers?.[this.side]?.isAI;
+  }
+
   get cryId() {
     return this.boss ? this.def.boss.id : this.def.id;
   }

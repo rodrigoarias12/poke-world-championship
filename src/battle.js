@@ -3,7 +3,7 @@ import { typeMultiplier, CREATURES, DIFFICULTY } from './data.js';
 import { Arena } from './arena.js';
 import { Effects, TYPE_COLORS } from './effects.js';
 import { Fighter } from './fighter.js';
-import { AI } from './ai.js';
+import { LocalController, AIController, applyButtons } from './controllers.js';
 import { updateProjectiles, updateHazards, renderProjectiles, renderHazards, renderGroundHazards } from './moves.js';
 import { renderHUD } from './hud.js';
 import { text, textWidth, roundRect, backOut, drawCreature } from './ui.js';
@@ -24,7 +24,9 @@ export class Battle {
     ];
     this.bossLast = bossLast;
     this.fighters = [this.makeFighter(0), this.makeFighter(1)];
-    this.ai = new AI(this, 1, difficulty);
+    // Lado de la pantalla que juega este celular (0 = izquierda)
+    this.localSide = 0;
+    this.controllers = [new LocalController(this, 0), new AIController(this, 1, difficulty)];
     this.projectiles = [];
     this.hazards = [];
     this.state = 'intro';
@@ -38,7 +40,7 @@ export class Battle {
     this.t = 0;
     this.lastCount = 4;
     this.switching = null;
-    this.stats = { hits: 0, maxCombo: 0, dealt: 0, ko: 0 };
+    this.sideStats = [0, 1].map(() => ({ hits: 0, maxCombo: 0, dealt: 0, ko: 0 }));
     this.caption = { text: CREATURES[teamA[0]].cry, t: 0 };
   }
 
@@ -66,12 +68,21 @@ export class Battle {
     return new Fighter(this, key, side, { boss });
   }
 
+  // "player" es siempre el Pokémon de este celular; "enemy", el del otro lado
   get player() {
-    return this.fighters[0];
+    return this.fighters[this.localSide];
   }
 
   get enemy() {
-    return this.fighters[1];
+    return this.fighters[1 - this.localSide];
+  }
+
+  get stats() {
+    return this.sideStats[this.localSide];
+  }
+
+  setController(side, controller) {
+    this.controllers[side] = controller;
   }
 
   shake(v) {
@@ -112,7 +123,7 @@ export class Battle {
     const crit = !o.noCrit && Math.random() < 0.07;
     const roll = o.tick ? 1 : 0.92 + Math.random() * 0.16;
     // La IA pega más suave en las dificultades bajas
-    const aiMult = att.side === 1 ? DIFFICULTY[this.difficulty].dmgMult : 1;
+    const aiMult = this.controllers[att.side]?.isAI ? DIFFICULTY[this.difficulty].dmgMult : 1;
     const dmg = Math.max(1, Math.round(((base * att.pow) / def.defn) * mult * stab * aiMult * (crit ? 1.5 : 1) * roll));
     def.hp = Math.max(0, def.hp - dmg);
     def.ghostDelay = 0.45;
@@ -154,11 +165,10 @@ export class Battle {
         this.effects.float(`${att.combo} GOLPES`, att.x, att.y - att.tall - 10, { color: '#ffe66b', size: 5, life: 0.7 });
       }
     }
-    if (att.side === 0) {
-      this.stats.dealt += dmg;
-      if (!o.tick) this.stats.hits++;
-      this.stats.maxCombo = Math.max(this.stats.maxCombo, att.combo);
-    }
+    const st = this.sideStats[att.side];
+    st.dealt += dmg;
+    if (!o.tick) st.hits++;
+    st.maxCombo = Math.max(st.maxCombo, att.combo);
 
     const hy = def.y - def.tall - 4;
     this.effects.float(String(dmg), def.x + (Math.random() - 0.5) * 8, hy, {
@@ -227,7 +237,7 @@ export class Battle {
     this.effects.float(`¡${f.name} se debilitó!`, f.x, f.y - f.tall - 14, { color: '#ffffff', size: 6, life: 1.6, vy: -8 });
     const team = this.teams[f.side];
     team.fainted.push(team.idx);
-    if (f.side === 1) this.stats.ko++;
+    this.sideStats[1 - f.side].ko++;
     const left = team.keys.length - team.fainted.length;
     if (left > 0) {
       this.state = 'switch';
@@ -259,34 +269,19 @@ export class Battle {
     this.splash(f.x, f.y, 12);
     this.audio.play('ball');
     this.audio.cry(f.cryId);
-    if (side === 0) this.caption = { text: `¡Adelante, ${f.def.name[0]}${f.def.name.slice(1).toLowerCase()}! ${f.def.cry}`, t: 0 };
+    if (side === this.localSide) this.caption = { text: `¡Adelante, ${f.def.name[0]}${f.def.name.slice(1).toLowerCase()}! ${f.def.cry}`, t: 0 };
     else this.caption = { text: f.boss ? `¡Cuidado! ¡${f.name}!` : f.def.cry, t: 0 };
     const who = { a: speakName(f.name) };
-    if (side === 0) this.say('next', who, 2);
+    if (side === this.localSide) this.say('next', who, 2);
     else if (f.boss) this.say('boss', who, 3.5);
     else this.say('nextEnemy', who, 2);
   }
 
-  playerIntent() {
+  // Teclado o pantalla táctil de este celular -> Pokémon del lado `side`
+  localIntent(side) {
     const inp = this.game.input;
-    const f = this.player;
-    const opp = this.enemy;
     const [mx, my] = inp.moveVector();
-    const it = f.intent;
-    it.mx = mx;
-    it.my = my;
-    it.use = -1;
-    // Teclas: 1, 2, ESPACIO, Q, E (se pueden mantener apretadas)
-    for (let i = 0; i < 5; i++) {
-      if (inp.wasPressed(`m${i}`) || (inp.isDown(`m${i}`) && i !== 2)) {
-        if (f.cds[i] <= 0) {
-          it.use = i;
-          break;
-        }
-      }
-    }
-    it.aimX = opp.x - f.x;
-    it.aimY = opp.y - f.y - (opp.lift > 20 ? 0 : 0);
+    applyButtons(this.fighters[side], mx, my, (i) => inp.wasPressed(`m${i}`), (i) => inp.isDown(`m${i}`));
   }
 
   update(dt) {
@@ -358,8 +353,7 @@ export class Battle {
 
     const sdt = dt * this.timeScale;
     if (this.state === 'fight') {
-      this.playerIntent();
-      this.ai.update(sdt);
+      for (const c of this.controllers) c.update(sdt);
     } else {
       for (const f of this.fighters) Object.assign(f.intent, { mx: 0, my: 0, use: -1 });
     }
@@ -602,7 +596,7 @@ export class Battle {
         if (n > 0) text(ctx, String(n), VW / 2, cy + 14, { size: 40 * backOut(local * 2), weight: 900, align: 'center', color: '#ffffff', stroke: '#1b1224', strokeW: 4, alpha: 1 - local * 0.4 });
       }
     }
-    if (this.state === 'fight' && this.stateT < 0.7 && !this.cutin && this.stats.ko === 0 && this.teams[0].fainted.length === 0) {
+    if (this.state === 'fight' && this.stateT < 0.7 && !this.cutin && this.teams[0].fainted.length === 0 && this.teams[1].fainted.length === 0) {
       const k = this.stateT / 0.7;
       text(ctx, '¡YA!', VW / 2, cy + 12, { size: 36 * backOut(k * 3), weight: 900, align: 'center', color: '#ffe66b', stroke: '#1b1224', strokeW: 4, alpha: 1 - Math.max(0, k - 0.6) / 0.4 });
     }

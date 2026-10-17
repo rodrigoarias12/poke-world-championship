@@ -33,7 +33,9 @@ class Game {
         .catch(() => {});
     }, { passive: true });
     this.last = performance.now();
-    requestAnimationFrame((t) => this.frame(t));
+    // ?timerloop: avanza con temporizador (para pruebas en navegadores sin dibujado)
+    this.timerLoop = new URLSearchParams(location.search).has('timerloop');
+    this.next();
   }
 
   resize() {
@@ -67,7 +69,14 @@ class Game {
     const dt = Math.min(0.05, (now - this.last) / 1000);
     this.last = now;
     this.tick(dt);
-    requestAnimationFrame((t) => this.frame(t));
+    // Con la pestaña oculta el navegador no dibuja; se sigue con un temporizador
+    // (en línea, el anfitrión no debe congelar la pelea del otro celular)
+    this.next();
+  }
+
+  next() {
+    if (this.timerLoop || document.hidden) setTimeout(() => this.frame(performance.now()), 16);
+    else requestAnimationFrame((t) => this.frame(t));
   }
 
   // Avanza el juego a mano (útil para pruebas automáticas)
