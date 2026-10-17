@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#16294f">
+  <title>Prueba de conexión</title>
+  <style>
+    :root {
+      --bg: #16294f;
+      --panel: #1f3a6e;
+      --text: #f4f1ea;
+      --muted: #b9c6e4;
+      --accent: #ffd23f;
+      --ok: #4fd65a;
+      --warn: #ffb43b;
+      --bad: #ff5d73;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.4 system-ui, -apple-system, sans-serif;
+      padding: max(16px, env(safe-area-inset-top)) 16px 24px;
+    }
+    main { max-width: 520px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 4px 0 2px; color: var(--accent); }
+    p.sub { margin: 0 0 16px; color: var(--muted); }
+    .card { background: var(--panel); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+    button {
+      font: inherit;
+      font-weight: 800;
+      font-size: 18px;
+      border: 0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      width: 100%;
+      margin: 6px 0;
+      color: #1b1224;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    button.secondary { background: #8fb3ff; }
+    input {
+      font: inherit;
+      font-size: 30px;
+      letter-spacing: 8px;
+      text-align: center;
+      width: 100%;
+      padding: 10px;
+      border-radius: 12px;
+      border: 0;
+      margin: 6px 0;
+    }
+    .code { font-size: 54px; font-weight: 900; letter-spacing: 10px; text-align: center; color: var(--accent); margin: 6px 0; }
+    .row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .row span:last-child { font-weight: 700; text-align: right; }
+    .big { font-size: 26px; font-weight: 900; text-align: center; margin: 8px 0; }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .bad { color: var(--bad); }
+    .hidden { display: none; }
+    small { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Prueba de conexión</h1>
+    <p class="sub">Abre esta página en los dos celulares. Uno crea la sala y el otro se une con el número.</p>
+
+    <section class="card" id="inicio">
+      <button id="crear">Crear sala</button>
+      <input id="codigo" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="1234" aria-label="Número de sala">
+      <button class="secondary" id="unirse">Unirse a la sala</button>
+    </section>
+
+    <section class="card hidden" id="esperando">
+      <div>Número de sala:</div>
+      <div class="code" id="codigoSala">----</div>
+      <small>Escríbelo en el otro celular, o mándale este link:</small>
+      <button class="secondary" id="compartir">Compartir link</button>
+      <p id="estadoEspera">Esperando al otro celular…</p>
+    </section>
+
+    <section class="card hidden" id="resultado">
+      <div class="big" id="veredicto">Midiendo…</div>
+      <div class="row"><span>Tipo de conexión</span><span id="tipo">—</span></div>
+      <div class="row"><span>Demora típica (ida y vuelta)</span><span id="p50">—</span></div>
+      <div class="row"><span>Demora en los peores momentos</span><span id="p95">—</span></div>
+      <div class="row"><span>Variación</span><span id="jitter">—</span></div>
+      <div class="row"><span>Mensajes perdidos</span><span id="perdidos">—</span></div>
+      <div class="row"><span>Tiempo de prueba</span><span id="tiempo">0 s</span></div>
+    </section>
+
+    <section class="card">
+      <strong>Este celular</strong>
+      <div id="capacidades"><small>Revisando…</small></div>
+    </section>
+
+    <section class="card">
+      <button class="secondary" id="copiar">Copiar resultados</button>
+      <small id="copiado"></small>
+    </section>
+  </main>
+
+  <script type="module">
+    import { hostRoom, joinRoom, describeConnection } from './src/net/transport.js';
+
+    const $ = (id) => document.getElementById(id);
+    const params = new URLSearchParams(location.search);
+    const caps = {};
+    const stats = { samples: [], sent: 0, received: 0, type: '—', start: 0, role: '' };
+    let link = null;
+
+    function show(id) {
+      for (const s of ['inicio', 'esperando', 'resultado']) $(s).classList.toggle('hidden', s !== id);
+    }
+
+    function percentile(arr, p) {
+      if (!arr.length) return null;
+      const s = [...arr].sort((a, b) => a - b);
+      return s[Math.min(s.length - 1, Math.floor((p / 100) * s.length))];
+    }
+
+    function summary() {
+      const p50 = percentile(stats.samples, 50);
+      const p95 = percentile(stats.samples, 95);
+      let jit = 0;
+      for (let i = 1; i < stats.samples.length; i++) jit += Math.abs(stats.samples[i] - stats.samples[i - 1]);
+      jit = stats.samples.length > 1 ? jit / (stats.samples.length - 1) : 0;
+      const lost = stats.sent ? Math.max(0, stats.sent - stats.received - 2) : 0;
+      return { p50, p95, jit, lost };
+    }
+
+    function render() {
+      const { p50, p95, jit, lost } = summary();
+      $('tipo').textContent = stats.type;
+      $('p50').textContent = p50 == null ? '—' : `${p50.toFixed(0)} ms`;
+      $('p95').textContent = p95 == null ? '—' : `${p95.toFixed(0)} ms`;
+      $('jitter').textContent = `${jit.toFixed(0)} ms`;
+      $('perdidos').textContent = String(lost);
+      $('tiempo').textContent = `${Math.round((performance.now() - stats.start) / 1000)} s`;
+      const v = $('veredicto');
+      if (p95 == null) {
+        v.textContent = 'Midiendo…';
+        v.className = 'big';
+      } else if (p95 < 80) {
+        v.textContent = '¡Funciona perfecto!';
+        v.className = 'big ok';
+      } else if (p95 < 180) {
+        v.textContent = 'Funciona, con algo de demora';
+        v.className = 'big warn';
+      } else {
+        v.textContent = 'Demasiada demora';
+        v.className = 'big bad';
+      }
+    }
+
+    async function onConnected(l, role) {
+      link = l;
+      stats.role = role;
+      stats.start = performance.now();
+      show('resultado');
+      link.onClose = (reason) => {
+        $('veredicto').textContent = `Se cortó la conexión (${reason})`;
+        $('veredicto').className = 'big bad';
+      };
+      link.on((msg) => {
+        if (msg.t === 'ping') link.send({ t: 'pong', ts: msg.ts });
+        else if (msg.t === 'pong') {
+          stats.received++;
+          stats.samples.push(performance.now() - msg.ts);
+          if (stats.samples.length > 1200) stats.samples.shift();
+        }
+      });
+      // Ping 20 veces por segundo durante 60 s
+      const timer = setInterval(() => {
+        if (link.closed || performance.now() - stats.start > 60000) {
+          clearInterval(timer);
+          render();
+          return;
+        }
+        stats.sent++;
+        link.send({ t: 'ping', ts: performance.now() });
+      }, 50);
+      setTimeout(async () => {
+        stats.type = describeConnection(await link.connectionType());
+        render();
+      }, 1500);
+      setInterval(render, 500);
+    }
+
+    async function crear(code = null) {
+      show('esperando');
+      try {
+        const room = await hostRoom({ code });
+        $('codigoSala').textContent = room.code;
+        $('compartir').onclick = async () => {
+          const url = `${location.origin}${location.pathname}?sala=${room.code}`;
+          if (navigator.share) navigator.share({ title: 'Prueba de conexión', url }).catch(() => {});
+          else {
+            await navigator.clipboard?.writeText(url);
+            $('estadoEspera').textContent = 'Link copiado. Esperando al otro celular…';
+          }
+        };
+        onConnected(await room.waitGuest(), 'anfitrión');
+      } catch (e) {
+        $('estadoEspera').textContent = `No se pudo crear la sala: ${e?.type || e?.message || e}`;
+      }
+    }
+
+    async function unirse(code) {
+      if (!/^\d{4}$/.test(code)) {
+        $('codigo').focus();
+        return;
+      }
+      $('unirse').textContent = 'Conectando…';
+      try {
+        onConnected(await joinRoom(code), 'invitado');
+      } catch (e) {
+        const why = e?.type === 'peer-unavailable' ? 'esa sala no existe' : e?.message === 'timeout' ? 'no hubo respuesta' : e?.type || e?.message;
+        $('unirse').textContent = 'Unirse a la sala';
+        alert(`No se pudo conectar: ${why}`);
+      }
+    }
+
+    $('crear').onclick = () => crear();
+    $('unirse').onclick = () => unirse($('codigo').value.trim());
+
+    // Capacidades del navegador que importan para el juego
+    async function probe() {
+      caps.navegador = navigator.userAgent.replace(/\(([^)]+)\)/, '($1)').slice(0, 120);
+      caps.pantalla = `${screen.width}×${screen.height} @${devicePixelRatio}x`;
+      caps.webrtc = typeof RTCPeerConnection !== 'undefined';
+      caps.animaciones = typeof ImageDecoder !== 'undefined';
+      caps.audioSession = 'audioSession' in navigator;
+      caps.wakeLock = 'wakeLock' in navigator;
+      try {
+        const buf = await fetch('https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/25.ogg').then((r) => r.arrayBuffer());
+        const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        await new Ctx(1, 44100, 44100).decodeAudioData(buf);
+        caps.gritos = true;
+      } catch {
+        caps.gritos = false;
+      }
+      caps.fps = await new Promise((res) => {
+        let n = 0;
+        const t0 = performance.now();
+        const step = () => {
+          n++;
+          if (performance.now() - t0 < 1000) requestAnimationFrame(step);
+          else res(Math.round(n / ((performance.now() - t0) / 1000)));
+        };
+        requestAnimationFrame(step);
+      });
+      const label = {
+        webrtc: 'Conexión entre celulares', animaciones: 'Pokémon animados', gritos: 'Gritos de los Pokémon',
+        audioSession: 'Sonido con el celular en silencio', wakeLock: 'Pantalla siempre encendida', fps: 'Cuadros por segundo',
+        pantalla: 'Pantalla', navegador: 'Navegador',
+      };
+      $('capacidades').innerHTML = Object.entries(label).map(([k, l]) => {
+        const v = caps[k];
+        const txt = v === true ? '<span class="ok">Sí</span>' : v === false ? '<span class="bad">No</span>' : `<span>${v}</span>`;
+        return `<div class="row"><span>${l}</span>${txt}</div>`;
+      }).join('');
+    }
+    probe();
+
+    $('copiar').onclick = async () => {
+      const s = summary();
+      const text = [
+        'Prueba de conexión – Poké World Championship',
+        `Rol: ${stats.role || 'sin conectar'}`,
+        `Conexión: ${stats.type}`,
+        `Demora típica: ${s.p50 == null ? '—' : s.p50.toFixed(0) + ' ms'} · peores: ${s.p95 == null ? '—' : s.p95.toFixed(0) + ' ms'} · variación: ${s.jit.toFixed(0)} ms · perdidos: ${s.lost}`,
+        ...Object.entries(caps).map(([k, v]) => `${k}: ${v}`),
+      ].join('\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        $('copiado').textContent = 'Copiado. Pégalo en el chat.';
+      } catch {
+        $('copiado').textContent = text;
+      }
+    };
+
+    // Links directos: ?sala=1234 se une, ?crear=1234 crea con ese número (para pruebas)
+    if (params.get('sala')) {
+      $('codigo').value = params.get('sala');
+      unirse(params.get('sala'));
+    } else if (params.get('crear')) {
+      crear(params.get('crear'));
+    }
+  </script>
+</body>
+</html>

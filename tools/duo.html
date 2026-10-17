@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Dos jugadores (prueba)</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #111; }
+    body { display: flex; gap: 6px; padding: 6px; box-sizing: border-box; }
+    iframe { flex: 1; border: 0; height: 100%; background: #000; }
+  </style>
+</head>
+<body>
+  <!-- Dos "celulares" lado a lado en la misma página: los dos siguen animándose -->
+  <iframe id="a"></iframe>
+  <iframe id="b"></iframe>
+  <script>
+    const p = new URLSearchParams(location.search);
+    const page = p.get('page') || '../red.html';
+    const code = p.get('code') || String(1000 + Math.floor(Math.random() * 9000));
+    const extra = p.get('extra') ? `&${p.get('extra')}` : '';
+    document.getElementById('a').src = `${page}?crear=${code}${extra}`;
+    // El invitado entra un poco después, cuando la sala ya existe
+    setTimeout(() => { document.getElementById('b').src = `${page}?sala=${code}${extra}`; }, 2500);
+  </script>
+</body>
+</html>
