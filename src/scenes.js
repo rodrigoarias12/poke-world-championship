@@ -329,7 +329,7 @@ export class TitleScene {
     this.menu.render(ctx);
     this.soundRects = soundButtons(ctx, this.game.audio);
     const audio = this.game.audio;
-    if (!audio.unlocked && !audio.silent) {
+    if (!audio.ready && !audio.silent) {
       // El navegador no deja sonar nada hasta el primer toque
       const a = 0.65 + Math.sin(this.t * 5) * 0.35;
       roundRect(ctx, VW / 2 - 80, 167, 160, 10, 3);
@@ -759,9 +759,6 @@ export class BattleScene {
     this.paused = false;
     this.result = null;
     this.resultT = 0;
-    game.input.setControls(touchLayout());
-    game.audio.music(cfg.bossLast || cfg.difficulty === 'jefe' ? 'boss' : 'battle');
-    game.announcer.onLine = (line) => this.battle.showRelator(line);
     const audio = game.audio;
     const musicItem = { label: '', color: '#2e9e8f', action: () => { audio.toggleMusic(); this.syncPauseLabels(); } };
     const sfxItem = { label: '', color: '#2e9e8f', action: () => { audio.toggleSfx(); this.syncPauseLabels(); } };
@@ -788,6 +785,25 @@ export class BattleScene {
     this.pauseItems.langItem.label = `IDIOMA RELATOR: ${this.game.announcer.langLabel}`;
   }
 
+  // Se llama después del onExit de la escena anterior (así REVANCHA no borra los controles)
+  onEnter() {
+    const g = this.game;
+    g.input.setControls(touchLayout());
+    g.audio.music(this.cfg.bossLast || this.cfg.difficulty === 'jefe' ? 'boss' : 'battle');
+    g.announcer.onLine = (line) => this.battle.showRelator(line);
+  }
+
+  touchControlsActive() {
+    return !this.paused && !this.result && ['intro', 'fight', 'switch'].includes(this.battle.state);
+  }
+
+  pause() {
+    this.paused = true;
+    this.pauseMenu.index = 0;
+    this.game.input.releaseAll();
+    this.game.audio.play('select');
+  }
+
   restart() {
     this.game.setScene(new BattleScene(this.game, this.cfg));
   }
@@ -803,7 +819,7 @@ export class BattleScene {
   }
 
   onBlur() {
-    if (this.battle.state === 'fight') this.paused = true;
+    if (this.battle.state === 'fight' && !this.paused) this.pause();
   }
 
   buildResult() {
@@ -850,9 +866,7 @@ export class BattleScene {
       return;
     }
     if (inp.wasPressed('pause') && b.state !== 'ko' && b.state !== 'end') {
-      this.paused = true;
-      this.pauseMenu.index = 0;
-      this.game.audio.play('select');
+      this.pause();
       return;
     }
     b.update(dt);
@@ -865,6 +879,7 @@ export class BattleScene {
   }
 
   onPointerDown(x, y) {
+    const b = this.battle;
     if (this.result) {
       if (this.resultT > 0.5) this.result.menu.pointerDown(x, y);
       return;
@@ -873,17 +888,13 @@ export class BattleScene {
       this.pauseMenu.pointerDown(x, y);
       return;
     }
-    if (inRect(x, y, PAUSE_RECT)) {
-      this.paused = true;
-      this.pauseMenu.index = 0;
-      this.game.audio.play('select');
-    }
+    if (inRect(x, y, PAUSE_RECT) && b.state !== 'ko' && b.state !== 'end') this.pause();
   }
 
   render(ctx) {
     const b = this.battle;
     b.render(ctx);
-    if (b.state === 'fight' || b.state === 'intro' || b.state === 'switch') renderTouchControls(ctx, b, this.game.input);
+    if (this.touchControlsActive()) renderTouchControls(ctx, b, this.game.input);
 
     if (this.paused) {
       dim(ctx, 0.78);

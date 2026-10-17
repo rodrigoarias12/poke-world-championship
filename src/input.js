@@ -45,13 +45,29 @@ export class Input {
       const actions = KEYMAP[e.code];
       if (actions) for (const a of actions) this.down.delete(a);
     });
-    addEventListener('blur', () => this.down.clear());
+    addEventListener('blur', () => this.releaseAll());
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) this.releaseAll();
+    });
 
     canvas.addEventListener('pointerdown', (e) => this.onPointer('down', e));
     canvas.addEventListener('pointermove', (e) => this.onPointer('move', e));
     addEventListener('pointerup', (e) => this.onPointer('up', e));
     addEventListener('pointercancel', (e) => this.onPointer('up', e));
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    // En iPhone el sonido solo se puede activar al soltar el dedo (touchend/pointerup)
+    const unlock = () => game.audio.unlock();
+    addEventListener('touchend', unlock, { capture: true, passive: true });
+    addEventListener('pointerup', unlock, { capture: true, passive: true });
+    // Evita el menú de "mantener presionado" y el zoom en iOS
+    canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+  }
+
+  // Suelta joystick y botones (al pausar, ocultar la app, etc.)
+  releaseAll() {
+    this.down.clear();
+    this.joy = null;
+    this.buttonPointers.clear();
   }
 
   toLogical(e) {
@@ -67,10 +83,14 @@ export class Input {
       try { this.canvas.setPointerCapture(e.pointerId); } catch { /* sin captura */ }
     }
 
-    if (this.controls && this.touchMode) {
-      if (this.handleControls(kind, e.pointerId, x, y)) return;
-    }
     const scene = this.game.scene;
+    // Los controles de pelea solo toman los toques mientras se está peleando
+    const active = this.controls && this.touchMode && scene?.touchControlsActive?.() !== false;
+    if (active) {
+      if (this.handleControls(kind, e.pointerId, x, y)) return;
+    } else if (kind !== 'down' && (this.joy?.id === e.pointerId || this.buttonPointers.has(e.pointerId))) {
+      this.handleControls(kind, e.pointerId, x, y);
+    }
     if (kind === 'down') scene?.onPointerDown?.(x, y);
     else if (kind === 'move') scene?.onPointerMove?.(x, y);
     else scene?.onPointerUp?.(x, y);

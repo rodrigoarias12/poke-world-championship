@@ -93,7 +93,7 @@ function sidePanel(ctx, b, side, t) {
   }
 }
 
-export const PAUSE_RECT = { x: VW / 2 - 7, y: 14, w: 14, h: 11 };
+export const PAUSE_RECT = { x: VW / 2 - 13, y: 10, w: 26, h: 20 };
 
 export function renderHUD(ctx, b, t) {
   sidePanel(ctx, b, 0, t);
@@ -161,12 +161,13 @@ function renderHotbar(ctx, b, t) {
 export function touchLayout() {
   return {
     joyTop: 50,
+    // ESQUIVAR (m2) es el más usado: grande y cerca del pulgar
     buttons: [
-      { id: 'm0', x: 292, y: 152, r: 13 },
-      { id: 'm1', x: 263, y: 163, r: 10 },
-      { id: 'm2', x: 303, y: 122, r: 9 },
-      { id: 'm3', x: 262, y: 138, r: 10 },
-      { id: 'm4', x: 279, y: 113, r: 10 },
+      { id: 'm0', x: 291, y: 145, r: 14 },
+      { id: 'm1', x: 301, y: 112, r: 10 },
+      { id: 'm2', x: 257, y: 156, r: 12 },
+      { id: 'm3', x: 270, y: 121, r: 10 },
+      { id: 'm4', x: 244, y: 130, r: 10 },
     ],
   };
 }

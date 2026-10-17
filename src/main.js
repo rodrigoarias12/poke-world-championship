@@ -21,6 +21,17 @@ class Game {
       this.audio.setHidden(document.hidden);
     });
     this.setScene(new LoadingScene(this));
+    // Android: pantalla completa y horizontal al primer toque (iPhone no lo permite)
+    let triedFull = false;
+    addEventListener('pointerup', (e) => {
+      if (triedFull || e.pointerType !== 'touch' || document.fullscreenElement) return;
+      const el = document.documentElement;
+      if (!el.requestFullscreen) return;
+      triedFull = true;
+      el.requestFullscreen({ navigationUI: 'hide' })
+        .then(() => screen.orientation?.lock?.('landscape'))
+        .catch(() => {});
+    }, { passive: true });
     this.last = performance.now();
     requestAnimationFrame((t) => this.frame(t));
   }
@@ -44,6 +55,12 @@ class Game {
     this.scene?.onExit?.();
     this.scene = scene;
     this.fade = 1;
+    scene.onEnter?.();
+  }
+
+  // Celular en vertical: el juego se detiene y se pide girarlo
+  get portrait() {
+    return this.input.touchMode && innerHeight > innerWidth;
   }
 
   frame(now) {
@@ -59,6 +76,10 @@ class Game {
   }
 
   tick(dt) {
+    if (this.portrait) {
+      this.input.endFrame();
+      return;
+    }
     if (this.input.wasPressed('mute')) this.audio.toggleMusic();
     if (this.input.wasPressed('sfx')) this.audio.toggleSfx();
     if (this.input.wasPressed('voice')) this.announcer.cycle();

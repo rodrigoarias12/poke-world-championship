@@ -88,12 +88,23 @@ export class Sfx {
       this.playBgm();
     }
     if (this.ctx) {
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      // En iOS puede quedar "suspended" o "interrupted" (al volver de otra app)
+      if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
       return;
     }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
+    // Que suene aunque el iPhone tenga el botón de silencio activado
+    try {
+      if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    } catch { /* no disponible */ }
     this.init(new AC());
+    if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {});
+  }
+
+  // ¿El sonido está realmente funcionando?
+  get ready() {
+    return !!this.ctx && this.ctx.state === 'running';
   }
 
   // Arma los canales de audio sobre un contexto (real o de prueba)
@@ -214,6 +225,10 @@ export class Sfx {
 
   // Pestaña oculta: pausa la música
   setHidden(hidden) {
+    if (this.ctx) {
+      if (hidden) this.ctx.suspend?.().catch(() => {});
+      else this.ctx.resume?.().catch(() => {});
+    }
     if (!this.bgm) return;
     if (hidden) this.bgm.pause();
     else if (this.bgmFile) this.playBgm();
