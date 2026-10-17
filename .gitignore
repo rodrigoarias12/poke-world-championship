@@ -1,0 +1,5 @@
+.vercel
+.env*
+# Videos para redes: no se suben (llevan contenido con derechos de autor)
+videos/
+.DS_Store

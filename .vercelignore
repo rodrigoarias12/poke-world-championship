@@ -1,0 +1,10 @@
+# Solo se sube el juego (index.html y src/)
+Jugar.command
+servidor.py
+.claude
+.env.local
+.env*
+.vercel
+.gitignore
+tools
+videos

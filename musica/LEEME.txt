@@ -1,0 +1,10 @@
+Música propia (opcional)
+
+Si pones aquí un archivo con alguno de estos nombres, el juego lo usa
+en lugar de la música de Pokémon Showdown:
+
+  menu.mp3     -> música del menú (por ejemplo, la de Pokémon GO)
+  batalla.mp3  -> música de las peleas
+  jefe.mp3     -> música de la final contra el jefe Mega
+
+Si no hay archivo, suena la música de batalla de los juegos.

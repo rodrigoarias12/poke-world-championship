@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "arena",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["servidor.py", "5173"],
+      "port": 5173
+    }
+  ]
+}
