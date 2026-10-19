@@ -292,3 +292,51 @@ export function personSprites(rand) {
   });
   return { normal, cheer };
 }
+
+// Líderes de gimnasio de Kanto (pixel art de 10x15 con sombreado y contorno)
+const LEADERS = {
+  brock: {
+    pal: { s: '#d9a066', h: '#4a2f1b', e: '#1a1020', t: '#f08030', v: '#4c8a3a', p: '#6b4a2a', b: '#3a2a1a' },
+    rows: ['..h.hh.h..', '.hhhhhhhh.', '.hhsssshh.', '..sesses..', '..ssssss..', '...ssss...', '.vvttttvv.', 'vvvttttvvv', 'svvttttvvs', 'svvttttvvs', 's.vvvvvv.s', '..pppppp..', '..ppp.ppp.', '..pp...pp.', '..bb...bb.'],
+  },
+  misty: {
+    pal: { s: '#ffdbac', h: '#f07828', e: '#1a1020', t: '#f2d230', k: '#e03030', p: '#3a70d0', b: '#e03030' },
+    rows: ['...hhhh...', '..hhhhhhh.', '.hhsssshhh', '..sesses.h', '..ssssss.h', '...ssss...', '..kttttk..', '.skttttks.', '.s.ssss.s.', '...pppp...', '...pppp...', '...ss.ss..', '...ss.ss..', '...ss.ss..', '...bb.bb..'],
+  },
+  surge: {
+    pal: { s: '#f1c27d', h: '#f2d230', g: '#1a1a1a', t: '#5a7a3a', k: '#3a5a2a', p: '#4a4a3a', b: '#2a2a2a' },
+    rows: ['.h.hhhh.h.', '.hhhhhhhh.', '..ssssss..', '..gggggg..', '..ssssss..', '...ssss...', 'tttttttttt', 'tkttktktkt', 'sttkttttts', 'stttkttkts', 's.tttttt.s', '..pppppp..', '..pp..pp..', '..pp..pp..', '..bb..bb..'],
+  },
+  erika: {
+    pal: { s: '#ffdbac', h: '#1a1a2a', k: '#e03040', e: '#1a1020', t: '#4cae5a', o: '#f2c318', b: '#d04060' },
+    rows: ['..hhhhhh..', '.hkkkkkkh.', '.hssssssh.', '.hsessesh.', '.hssssssh.', '..hssssh..', '..tttttt..', '.tttttttt.', '.oooooooo.', 'stttttttts', 's.tttttt.s', '..tttttt..', '..tttttt..', '..tt..tt..', '..bb..bb..'],
+  },
+  koga: {
+    pal: { s: '#e0ac69', h: '#1a1a1a', e: '#1a1020', k: '#4a2a6a', t: '#7a4ab0', o: '#2a1a3a', b: '#2a1a2a' },
+    rows: ['..hhhhhh..', '.hhhhhhhh.', '..ssssss..', '..sesses..', '..kkkkkk..', '...kkkk...', '.tttttttt.', 'tttttttttt', 'st.tttt.ts', 'st.oooo.ts', 's.tttttt.s', '..tttttt..', '..tt..tt..', '..tt..tt..', '..bb..bb..'],
+  },
+  sabrina: {
+    pal: { s: '#ffdbac', h: '#203a30', e: '#c03050', t: '#d03040', w: '#f0f0f0', b: '#2a2a2a' },
+    rows: ['..hhhhhh..', '.hhhhhhhh.', '.hssssssh.', '.hsessesh.', '.hssssssh.', '.hhsssshh.', '.htttttth.', 'htttttttth', 'hsttttttsh', 'hs.tttt.sh', 'h..wwww..h', '...wwww...', '...ww.ww..', '...ww.ww..', '...bb.bb..'],
+  },
+  blaine: {
+    pal: { s: '#f1c27d', g: '#1a1a1a', w: '#f4f4f4', t: '#e86a20', p: '#5a4a3a', b: '#2a2a2a' },
+    rows: ['...ssss...', '..ssssss..', '..ssssss..', '..gggggg..', '..ssssss..', '..swwwws..', '...ssss...', '.wwwttwww.', 'wwwwttwwww', 'swwwttwwws', 'swwwwwwwws', 's.wwwwww.s', '..wwwwww..', '..pp..pp..', '..bb..bb..'],
+  },
+  giovanni: {
+    pal: { s: '#e0ac69', h: '#1a1a1a', e: '#1a1020', t: '#b06a2a', w: '#f0f0f0', k: '#c03030', p: '#7a4a1a', b: '#2a1a1a' },
+    rows: ['..hhhhhh..', '.hhhhhhhh.', '..ssssss..', '..sesses..', '..ssssss..', '...ssss...', '.tttwwttt.', 'tttttktttt', 'sttttkttts', 'stttttttts', 's.tttttt.s', '..pppppp..', '..pp..pp..', '..pp..pp..', '..bb..bb..'],
+  },
+};
+const LEADER_KEY = { BROCK: 'brock', MISTY: 'misty', 'LT. SURGE': 'surge', ERIKA: 'erika', KOGA: 'koga', SABRINA: 'sabrina', BLAINE: 'blaine', GIOVANNI: 'giovanni' };
+const leaderCache = new Map();
+
+export function leaderSprite(name) {
+  const key = LEADER_KEY[name] || name;
+  if (!leaderCache.has(key)) {
+    const L = LEADERS[key];
+    if (!L) return null;
+    leaderCache.set(key, buildSprite(10, 15, L.pal, 'eg', (p) => p.stamp(0, 0, L.rows)));
+  }
+  return leaderCache.get(key);
+}

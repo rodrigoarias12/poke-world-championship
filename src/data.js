@@ -65,7 +65,7 @@ export const MOVES = {
   rayoHielo: { name: 'Rayo Hielo', kind: 'beam', type: 'agua', fx: 'hielo', tick: 2.8, width: 8, dur: 1.2, track: 1.6, freeze: true, slow: 0.7, cd: 13 },
   torbellino: { name: 'Torbellino', kind: 'zone', type: 'agua', visual: 'whirl', fx: 'agua', r: 32, warn: 0.3, burst: 6, dur: 2.6, tick: 2.5, pull: 70, cd: 8 },
   hiperrayo: { name: 'Hiperrayo', kind: 'beam', type: 'normal', fx: 'hiper', tick: 6, width: 15, dur: 0.9, charge: 0.6, recharge: 1.0, track: 0.8, cd: 15 },
-  mordisco: { name: 'Mordisco', kind: 'melee', type: 'normal', fx: 'normal', range: 22, dmg: 9, kb: 120, stun: 0.2, cd: 0.7 },
+  mordisco: { name: 'Mordisco', kind: 'melee', type: 'normal', fx: 'normal', bite: true, range: 22, dmg: 9, kb: 120, stun: 0.2, cd: 0.7 },
 
   latigoCepa: { name: 'Látigo Cepa', kind: 'melee', type: 'planta', fx: 'planta', range: 26, dmg: 8, kb: 110, cd: 0.6 },
   hojaAfilada: { name: 'Hoja Afilada', kind: 'shot', type: 'planta', proj: 'needle', fx: 'planta', dmg: 5, speed: 230, r: 2.2, count: 3, spread: 0.25, cd: 1.4 },
@@ -91,7 +91,7 @@ export const MOVES = {
   destructor: { name: 'Destructor', kind: 'melee', type: 'normal', fx: 'hada', range: 18, dmg: 7, kb: 100, cd: 0.6 },
   vozCautivadora: { name: 'Voz Cautivadora', kind: 'shot', type: 'hada', proj: 'note', fx: 'hada', dmg: 10, speed: 145, r: 4, homing: 2.5, life: 3, cd: 2.2 },
   rodada: { name: 'Rodada', kind: 'dash', type: 'roca', fx: 'hada', dmg: 9, speed: 250, time: 0.35, hits: 3, spin: true, kb: 150, cd: 7 },
-  canto: { name: 'Canto', kind: 'ring', type: 'hada', fx: 'hada', count: 3, dmg: 3, sleep: true, stun: 1.5, speed: 110, maxR: 80, cd: 13 },
+  canto: { name: 'Canto', kind: 'ring', type: 'hada', fx: 'hada', notes: true, count: 3, dmg: 3, sleep: true, stun: 1.5, speed: 110, maxR: 80, cd: 13 },
 
   palmeo: { name: 'Palmeo', kind: 'melee', type: 'lucha', fx: 'aura', range: 20, dmg: 9, stun: 0.3, kb: 140, cd: 0.7 },
   esferaAural: { name: 'Esfera Aural', kind: 'shot', type: 'lucha', proj: 'orb', fx: 'aura', dmg: 12, speed: 155, r: 5, homing: 2.6, life: 3, weight: 2, cd: 2.4 },
@@ -102,6 +102,33 @@ export const MOVES = {
   psicocorte: { name: 'Psicocorte', kind: 'shot', type: 'psiquico', proj: 'needle', fx: 'psiquico', dmg: 6, speed: 240, r: 2.4, count: 3, spread: 0.22, cd: 2.2 },
   bolaSombraQ: { name: 'Bola Sombra', kind: 'shot', type: 'fantasma', proj: 'orb', fx: 'fantasma', dmg: 16, speed: 130, r: 6, homing: 2.2, life: 3.5, weight: 2, cd: 6 },
   psiquico: { name: 'Psíquico', kind: 'zone', type: 'psiquico', visual: 'psy', fx: 'psiquico', r: 26, warn: 0.7, burst: 26, dur: 0.5, tick: 0, stun: 0.6, cd: 12 },
+
+  rayo: { name: 'Rayo', kind: 'beam', type: 'electrico', fx: 'electrico', tick: 3.2, width: 8, dur: 1.0, track: 1.5, cd: 13 },
+  pinMisil: { name: 'Pin Misil', kind: 'shot', type: 'electrico', proj: 'needle', fx: 'electrico', dmg: 4, speed: 260, r: 2, count: 4, spread: 0.3, cd: 1.6 },
+  colmilloRayo: { name: 'Colmillo Rayo', kind: 'melee', type: 'electrico', fx: 'electrico', bite: true, range: 22, dmg: 13, kb: 140, stun: 0.35, cd: 4 },
+
+  lanzarrocas: { name: 'Lanzarrocas', kind: 'shot', type: 'roca', proj: 'boulder', fx: 'roca', dmg: 8, speed: 190, r: 3.5, cd: 0.75 },
+  tumbaRocas: { name: 'Tumba Rocas', kind: 'shot', type: 'roca', proj: 'boulder', fx: 'roca', dmg: 13, speed: 150, r: 6, explode: 16, weight: 3, kb: 160, cd: 2.8 },
+  filoRoca: { name: 'Filo Roca', kind: 'zone', type: 'roca', visual: 'spikes', fx: 'roca', r: 30, warn: 0.6, burst: 25, dur: 0.6, tick: 0, stun: 0.5, cd: 12 },
+
+  somnifero: { name: 'Somnífero', kind: 'ring', type: 'planta', fx: 'planta', count: 2, dmg: 2, sleep: true, stun: 1.4, speed: 110, maxR: 72, cd: 10 },
+  danzaPetalo: { name: 'Danza Pétalo', kind: 'ring', type: 'planta', fx: 'petalo', count: 4, dmg: 9, speed: 150, maxR: 92, kb: 130, cd: 13 },
+
+  psicorrayo: { name: 'Psicorrayo', kind: 'beam', type: 'psiquico', fx: 'psiquico', tick: 2.4, width: 7, dur: 0.8, track: 1.4, cd: 7 },
+  premonicion: { name: 'Premonición', kind: 'thunder', type: 'psiquico', fx: 'psiquico', visual: 'psy', dmg: 15, strikes: 3, interval: 0.5, r: 15, warn: 0.7, stun: 0.3, cd: 13 },
+
+  colmilloIgneo: { name: 'Colmillo Ígneo', kind: 'melee', type: 'fuego', fx: 'fuego', bite: true, range: 22, dmg: 10, kb: 120, stun: 0.15, cd: 0.7 },
+  enviteIgneo: { name: 'Envite Ígneo', kind: 'dash', type: 'fuego', fx: 'fuego', dmg: 27, speed: 345, time: 0.45, kb: 300, stun: 0.4, recharge: 0.6, cd: 13 },
+
+  golpeKarate: { name: 'Golpe Kárate', kind: 'melee', type: 'lucha', fx: 'lucha', range: 20, dmg: 9, kb: 130, cd: 0.6 },
+  punoDinamico: { name: 'Puño Dinámico', kind: 'melee', type: 'lucha', fx: 'lucha', range: 24, dmg: 15, kb: 220, stun: 0.55, cd: 3 },
+  tajoCruzado: { name: 'Tajo Cruzado', kind: 'dash', type: 'lucha', fx: 'lucha', dmg: 12, speed: 300, time: 0.28, hits: 2, kb: 180, cd: 6 },
+
+  brilloMagico: { name: 'Brillo Mágico', kind: 'ring', type: 'hada', fx: 'hada', count: 2, dmg: 8, speed: 160, maxR: 82, kb: 110, cd: 7 },
+  fuerzaLunar: { name: 'Fuerza Lunar', kind: 'shot', type: 'hada', proj: 'moon', fx: 'lunar', dmg: 25, speed: 140, r: 8, explode: 30, homing: 1.2, life: 3.5, weight: 3, kb: 220, cd: 12 },
+
+  golpeUmbrio: { name: 'Golpe Umbrío', kind: 'melee', type: 'normal', fx: 'siniestro', range: 24, dmg: 10, kb: 120, cd: 0.7 },
+  shurikenAgua: { name: 'Shuriken de Agua', kind: 'shot', type: 'agua', proj: 'shuriken', fx: 'agua', dmg: 10, speed: 230, r: 5, count: 3, spread: 0.3, homing: 1.4, explode: 12, weight: 2, cd: 12 },
 };
 
 // --------------------------------------------------------------- Pokémon
@@ -203,6 +230,78 @@ export const CREATURES = {
     moves: ['confusion', 'psicocorte', 'teletransporte', 'bolaSombraQ', 'psiquico'],
     boss: { id: 10044, name: 'MEGA MEWTWO Y' },
   },
+  raichu: {
+    name: 'RAICHU', id: 26, type: 'electrico', cry: '¡Raichu!',
+    hp: 118, speed: 124, pow: 1.1, def: 0.96,
+    moves: ['impactrueno', 'bolaVoltio', 'ataqueRapido', 'placajeElectrico', 'rayo'],
+    boss: { id: 10100, name: 'RAICHU DE ALOLA' },
+  },
+  onix: {
+    name: 'ONIX', id: 95, type: 'roca', cry: '¡Oniiiix!',
+    hp: 150, speed: 92, pow: 1.08, def: 1.18,
+    moves: ['lanzarrocas', 'tumbaRocas', 'excavar', 'terremoto', 'filoRoca'],
+    boss: { id: 10072, name: 'MEGA STEELIX' },
+  },
+  psyduck: {
+    name: 'PSYDUCK', id: 54, type: 'agua', cry: '¡Psy… duck!',
+    hp: 112, speed: 104, pow: 0.98, def: 0.96,
+    moves: ['pistolaAgua', 'confusion', 'esquivar', 'hidropulso', 'psiquico'],
+    boss: { id: 55, name: 'GOLDUCK' },
+  },
+  vileplume: {
+    name: 'VILEPLUME', id: 45, type: 'planta', cry: '¡Vileplume!',
+    hp: 128, speed: 96, pow: 1.06, def: 1.08,
+    moves: ['hojaAfilada', 'bombaGermen', 'esquivar', 'somnifero', 'danzaPetalo'],
+    boss: { id: 182, name: 'BELLOSSOM' },
+  },
+  alakazam: {
+    name: 'ALAKAZAM', id: 65, type: 'psiquico', cry: '¡Alakazam!',
+    hp: 105, speed: 126, pow: 1.18, def: 0.92,
+    moves: ['confusion', 'psicocorte', 'teletransporte', 'psicorrayo', 'premonicion'],
+    boss: { id: 10037, name: 'MEGA ALAKAZAM' },
+  },
+  arcanine: {
+    name: 'ARCANINE', id: 59, type: 'fuego', cry: '¡Grrraaau!',
+    hp: 135, speed: 122, pow: 1.12, def: 1.02,
+    moves: ['colmilloIgneo', 'lanzallamas', 'esquivar', 'velocidadExtrema', 'enviteIgneo'],
+    boss: { id: 10230, name: 'ARCANINE DE HISUI' },
+  },
+  machamp: {
+    name: 'MACHAMP', id: 68, type: 'lucha', cry: '¡Machaaamp!',
+    hp: 140, speed: 100, pow: 1.18, def: 1.06,
+    moves: ['golpeKarate', 'punoDinamico', 'esquivar', 'tajoCruzado', 'aBocajarro'],
+    boss: { id: 68, name: 'MACHAMP GIGANTE' },
+  },
+  gardevoir: {
+    name: 'GARDEVOIR', id: 282, type: 'hada', cry: '¡Gardevoir!',
+    hp: 112, speed: 118, pow: 1.14, def: 0.98,
+    moves: ['vozCautivadora', 'confusion', 'teletransporte', 'brilloMagico', 'fuerzaLunar'],
+    boss: { id: 10051, name: 'MEGA GARDEVOIR' },
+  },
+  greninja: {
+    name: 'GRENINJA', id: 658, type: 'agua', cry: '¡Greninja!',
+    hp: 110, speed: 132, pow: 1.12, def: 0.94,
+    moves: ['pistolaAgua', 'golpeUmbrio', 'teletransporte', 'cascada', 'shurikenAgua'],
+    boss: { id: 10117, name: 'GRENINJA ASH' },
+  },
+  jolteon: {
+    name: 'JOLTEON', id: 135, type: 'electrico', cry: '¡Jolteon!',
+    hp: 102, speed: 132, pow: 1.06, def: 0.92,
+    moves: ['impactrueno', 'pinMisil', 'ataqueRapido', 'colmilloRayo', 'trueno'],
+    boss: { id: 135, name: 'JOLTEON GIGANTE' },
+  },
+  vaporeon: {
+    name: 'VAPOREON', id: 134, type: 'agua', cry: '¡Vaporeon!',
+    hp: 150, speed: 100, pow: 1.04, def: 1.04,
+    moves: ['pistolaAgua', 'hidropulso', 'refugio', 'torbellino', 'hidrobomba'],
+    boss: { id: 134, name: 'VAPOREON GIGANTE' },
+  },
+  flareon: {
+    name: 'FLAREON', id: 136, type: 'fuego', cry: '¡Flareon!',
+    hp: 112, speed: 112, pow: 1.16, def: 1.0,
+    moves: ['ascuas', 'colmilloIgneo', 'esquivar', 'giroFuego', 'enviteIgneo'],
+    boss: { id: 136, name: 'FLAREON GIGANTE' },
+  },
 };
 
 export const ROSTER = Object.keys(CREATURES);
@@ -231,6 +330,7 @@ export const GMAX = {
   snorlax: { id: 10206, move: 'Gigarrecolección' },
   lapras: { id: 10204, move: 'Gigamelodía' },
   eevee: { id: 10205, move: 'Gigaternura' },
+  machamp: { id: 10201, move: 'Gigagolpe' },
 };
 
 // Ataque Dinamax de los que no tienen forma Gigamax (según su tipo)
@@ -255,7 +355,19 @@ export const DIFFICULTY = {
   jefe: { label: 'IA JEFE', color: '#e0399a', reaction: 0.13, dodge: 0.75, lead: 1, aggression: 0.85, aimError: 0.03, ultDelay: 0.2, dmgMult: 1.1 },
 };
 
-export const ARENAS = ['piscina', 'lago', 'noche'];
+// Gimnasios de Kanto: líder, su Pokémon estrella y la medalla (sprites/badges de PokeAPI)
+export const GYMS = {
+  plateado: { city: 'CIUDAD PLATEADA', leader: 'BROCK', ace: 'onix', badge: 1, medal: 'MEDALLA ROCA', type: 'roca' },
+  celeste: { city: 'CIUDAD CELESTE', leader: 'MISTY', ace: 'starmie', badge: 2, medal: 'MEDALLA CASCADA', type: 'agua' },
+  carmin: { city: 'CIUDAD CARMÍN', leader: 'LT. SURGE', ace: 'raichu', badge: 3, medal: 'MEDALLA TRUENO', type: 'electrico' },
+  azulona: { city: 'CIUDAD AZULONA', leader: 'ERIKA', ace: 'vileplume', badge: 4, medal: 'MEDALLA ARCOÍRIS', type: 'planta' },
+  fucsia: { city: 'CIUDAD FUCSIA', leader: 'KOGA', ace: 'gengar', badge: 5, medal: 'MEDALLA ALMA', type: 'fantasma' },
+  azafran: { city: 'CIUDAD AZAFRÁN', leader: 'SABRINA', ace: 'alakazam', badge: 6, medal: 'MEDALLA PANTANO', type: 'psiquico' },
+  canela: { city: 'ISLA CANELA', leader: 'BLAINE', ace: 'arcanine', badge: 7, medal: 'MEDALLA VOLCÁN', type: 'fuego' },
+  verde: { city: 'CIUDAD VERDE', leader: 'GIOVANNI', ace: 'mewtwo', badge: 8, medal: 'MEDALLA TIERRA', type: 'roca' },
+};
+
+export const ARENAS = ['piscina', 'lago', 'noche', ...Object.keys(GYMS)];
 
 export const TOURNAMENT_DIFFICULTY = ['facil', 'normal', 'dificil', 'jefe'];
 

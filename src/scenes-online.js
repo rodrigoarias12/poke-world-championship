@@ -6,7 +6,7 @@ import { Battle } from './battle.js';
 import { AI } from './ai.js';
 import { RemoteController } from './controllers.js';
 import { Menu } from './menu.js';
-import { Arena } from './arena.js';
+import { Arena, arenaName } from './arena.js';
 import { touchLayout, renderTouchControls, PAUSE_RECT } from './hud.js';
 import { text, roundRect, panel, button, inRect, backOut, ease, drawCreature } from './ui.js';
 import { quickMatch, hostRoom, joinRoom } from './net/transport.js';
@@ -30,7 +30,7 @@ const forcedTeam = (() => {
   return keys.length === 3 && keys.every((k) => ROSTER.includes(k)) ? keys : null;
 })();
 
-const ARENA_NAMES = { piscina: 'PISCINA POKÉMON', lago: 'LAGO ESMERALDA', noche: 'MAR NOCTURNO' };
+
 
 function dim(ctx, a) {
   ctx.fillStyle = `rgba(12,8,22,${a})`;
@@ -334,7 +334,7 @@ export class OnlineScene {
     this.rects = {};
     if (this.mode === 'vs') {
       const side = this.session?.localSide ?? 0;
-      drawVersus(ctx, this.vsT, { left: this.start.teams[side], right: this.start.teams[1 - side], arenaName: ARENA_NAMES[this.start.arena] || '' });
+      drawVersus(ctx, this.vsT, { left: this.start.teams[side], right: this.start.teams[1 - side], arenaName: arenaName(this.start.arena) });
       return;
     }
     this.arena.drawWater(ctx, this.t);

@@ -53,7 +53,8 @@ const lines = [];
 for (let i = 0; i < N; i++) {
   seed = 1000 + i;
   const order = [...ROSTER].sort((a, b) => a.localeCompare(b));
-  const pick = (k) => order[(i * 7 + k * 5) % order.length];
+  // Paso 9: recorre todo el plantel (9 no comparte divisores con 16 ni con 28)
+  const pick = (k) => order[(i * 9 + k * 5) % order.length];
   const cfg = {
     teamA: [pick(0), pick(1), pick(2)],
     teamB: [pick(3), pick(4), pick(5)],

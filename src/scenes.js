@@ -1,5 +1,7 @@
 import { VW, VH } from './config.js';
-import { CREATURES, ROSTER, TYPES, MOVES, DIFFICULTY, ARENAS, TOURNAMENT_DIFFICULTY, GAME_NAME, LEAGUE_NAME, KEY_LABELS, allSpriteIds, gmaxSpriteIds, strongAgainst } from './data.js';
+import { CREATURES, ROSTER, TYPES, MOVES, DIFFICULTY, ARENAS, GYMS, TOURNAMENT_DIFFICULTY, GAME_NAME, LEAGUE_NAME, KEY_LABELS, allSpriteIds, gmaxSpriteIds, strongAgainst } from './data.js';
+import { leaderSprite } from './art.js';
+import { badgeImage } from './gyms.js';
 import { loadSprites } from './sprites.js';
 import { Arena } from './arena.js';
 import { Battle } from './battle.js';
@@ -228,8 +230,9 @@ export class LoadingScene {
     this.finished = false;
     loadSprites(ids, (n) => (this.done = n)).then(() => {
       this.finished = true;
-      // Las formas Gigamax se cargan después, sin hacer esperar
+      // Las formas Gigamax y las medallas se cargan después, sin hacer esperar
       loadSprites(gmaxSpriteIds(), null, { still: true });
+      for (const g of Object.values(GYMS)) badgeImage(g.badge);
     });
     game.audio.loadCries(ids);
   }
@@ -359,7 +362,8 @@ export class TitleScene {
 
 // ----------------------------------------------------------- Armar equipo
 
-const STAT_RANGE = { hp: [90, 175], speed: [80, 130], pow: [0.95, 1.2], def: [0.9, 1.18] };
+const STAT_RANGE = { hp: [90, 175], speed: [80, 132], pow: [0.95, 1.2], def: [0.9, 1.18] };
+const GRID_COLS = 10;
 
 export class TeamScene {
   constructor(game, { mode, team = [] }) {
@@ -408,15 +412,18 @@ export class TeamScene {
       return;
     }
     if (this.mode === 'torneo') {
+      // Tres gimnasios de Kanto (cada líder con su Pokémon estrella al final) y la gran final
+      const gyms = shuffle(Object.keys(GYMS)).slice(0, 3);
       const used = [];
       const rivals = [];
       for (let r = 0; r < 4; r++) {
-        const team = pick3([...used]);
+        const ace = r < 3 ? GYMS[gyms[r]].ace : null;
+        const team = ace ? [...pick3([...used, ace]).slice(0, 2), ace] : pick3([...used]);
         used.push(...team);
         if (used.length > 10) used.splice(0, 6);
         rivals.push(team);
       }
-      g.setScene(new BracketScene(g, { team: this.team, rivals, round: 0, arenas: shuffle([...ARENAS, 'piscina']) }));
+      g.setScene(new BracketScene(g, { team: this.team, rivals, round: 0, gyms, arenas: [...gyms, 'noche'] }));
     } else {
       g.setScene(new DifficultyScene(g, { team: this.team }));
     }
@@ -434,7 +441,8 @@ export class TeamScene {
     const n = ROSTER.length;
     if (inp.wasPressed('right')) this.index = (this.index + 1) % n;
     if (inp.wasPressed('left')) this.index = (this.index - 1 + n) % n;
-    if (inp.wasPressed('down') || inp.wasPressed('up')) this.index = (this.index + 8) % n;
+    if (inp.wasPressed('down')) this.index = Math.min(n - 1, this.index + GRID_COLS);
+    if (inp.wasPressed('up')) this.index = Math.max(0, this.index - GRID_COLS);
     if (['right', 'left', 'up', 'down'].some((k) => inp.wasPressed(k))) this.game.audio.play('select');
     if (inp.wasPressed('confirm')) {
       // Con el equipo completo, ENTER sobre otro Pokémon empieza
@@ -465,42 +473,44 @@ export class TeamScene {
     dim(ctx, 0.72);
     title(ctx, this.mode === 'torneo' ? 'ARMA TU EQUIPO · TORNEO' : this.mode === 'online' ? 'TU EQUIPO PARA JUGAR EN LÍNEA' : 'ARMA TU EQUIPO');
 
-    // Grilla de 16
+    // Grilla de todos los Pokémon (10 por fila)
+    const cw = 29.4;
+    const ch = 23.6;
     this.cards = ROSTER.map((key, i) => {
       const c = CREATURES[key];
-      const col = i % 8;
-      const row = Math.floor(i / 8);
-      const x = 10 + col * 37.6;
-      const y = 22 + row * 36;
+      const col = i % GRID_COLS;
+      const row = Math.floor(i / GRID_COLS);
+      const x = 10 + col * (cw + 0.7);
+      const y = 21 + row * (ch + 0.8);
       const sel = i === this.index;
       const inTeam = this.team.indexOf(key);
-      roundRect(ctx, x, y, 35, 33, 3);
+      roundRect(ctx, x, y, cw, ch, 2.5);
       ctx.fillStyle = sel ? '#2d2350' : 'rgba(40,32,64,0.88)';
       ctx.fill();
       ctx.save();
-      roundRect(ctx, x, y, 35, 33, 3);
+      roundRect(ctx, x, y, cw, ch, 2.5);
       ctx.clip();
       ctx.fillStyle = TYPES[c.type].color;
       ctx.globalAlpha = sel ? 0.55 : 0.28;
-      ctx.fillRect(x, y, 35, 24);
+      ctx.fillRect(x, y, cw, ch - 6);
       ctx.restore();
       if (sel || inTeam >= 0) {
-        ctx.lineWidth = sel ? 1.3 : 0.9;
+        ctx.lineWidth = sel ? 1.2 : 0.8;
         ctx.strokeStyle = sel ? '#ffffff' : '#ffe66b';
-        roundRect(ctx, x, y, 35, 33, 3);
+        roundRect(ctx, x, y, cw, ch, 2.5);
         ctx.stroke();
       }
-      drawCreature(ctx, key, x + 17.5, y + 12, 22, { t: sel ? t : 0 });
-      text(ctx, c.name, x + 17.5, y + 30, { size: c.name.length > 8 ? 3 : 3.6, weight: 900, align: 'center' });
+      drawCreature(ctx, key, x + cw / 2, y + 8.6, 15, { t: sel ? t : 0 });
+      text(ctx, c.name, x + cw / 2, y + ch - 1.8, { size: c.name.length > 8 ? 2.5 : 2.9, weight: 900, align: 'center' });
       if (inTeam >= 0) {
         ctx.beginPath();
-        ctx.arc(x + 31, y + 4, 3.4, 0, Math.PI * 2);
+        ctx.arc(x + cw - 3.4, y + 3.4, 2.8, 0, Math.PI * 2);
         ctx.fillStyle = '#ffe66b';
         ctx.fill();
-        text(ctx, String(inTeam + 1), x + 31, y + 5.5, { size: 4, weight: 900, align: 'center', color: '#1b1224' });
+        text(ctx, String(inTeam + 1), x + cw - 3.4, y + 4.7, { size: 3.4, weight: 900, align: 'center', color: '#1b1224' });
       }
-      if (this.champs.includes(key)) text(ctx, '★', x + 4, y + 6, { size: 4.5, align: 'center', color: '#ffe66b', stroke: '#1b1224', strokeW: 1 });
-      return { x, y, w: 35, h: 33 };
+      if (this.champs.includes(key)) text(ctx, '★', x + 3.4, y + 5, { size: 3.8, align: 'center', color: '#ffe66b', stroke: '#1b1224', strokeW: 1 });
+      return { x, y, w: cw, h: ch };
     });
 
     // Detalle
@@ -577,6 +587,9 @@ export class DifficultyScene {
     this.boss = false;
     this.t = 0;
     this.arena = new Arena('lago', 5);
+    // Cancha elegida (arranca una al azar); se cambia con las flechas del recuadro o la tecla C
+    this.arenaIdx = Math.floor(Math.random() * ARENAS.length);
+    this.previews = new Map();
     game.audio.music('menu');
     const start = (d) => () => {
       game.setScene(new BattleScene(game, {
@@ -585,7 +598,7 @@ export class DifficultyScene {
         teamB: this.rivals,
         bossLast: this.boss,
         difficulty: d,
-        arena: ARENAS[Math.floor(Math.random() * ARENAS.length)],
+        arena: ARENAS[this.arenaIdx],
         round: 'COMBATE',
       }));
     };
@@ -606,7 +619,18 @@ export class DifficultyScene {
       this.game.audio.play('select');
     }
     if (inp.wasPressed('m3')) this.reroll();
+    if (inp.wasPressed('cancha')) this.nextArena(1);
     if (inp.wasPressed('back')) this.back();
+  }
+
+  nextArena(d) {
+    this.arenaIdx = (this.arenaIdx + d + ARENAS.length) % ARENAS.length;
+    this.game.audio.play('select');
+  }
+
+  preview(key) {
+    if (!this.previews.has(key)) this.previews.set(key, new Arena(key, 9));
+    return this.previews.get(key);
   }
 
   reroll() {
@@ -631,7 +655,40 @@ export class DifficultyScene {
       return;
     }
     if (inRect(x, y, this.rerollRect)) return this.reroll();
+    if (inRect(x, y, this.prevRect)) return this.nextArena(-1);
+    if (inRect(x, y, this.nextRect) || inRect(x, y, this.thumbRect)) return this.nextArena(1);
     this.menu.pointerDown(x, y);
+  }
+
+  // Recuadro con la cancha elegida (vista en miniatura)
+  renderArenaPicker(ctx) {
+    const key = ARENAS[this.arenaIdx];
+    const a = this.preview(key);
+    const gym = GYMS[key];
+    const tx = 126;
+    const ty = 32;
+    const tw = 68;
+    const th = 38.25;
+    panel(ctx, 108, 22, 104, 50, { fill: 'rgba(30,24,50,0.92)', r: 4 });
+    text(ctx, a.name, 160, 29, { size: a.name.length > 20 ? 3.1 : 3.8, weight: 900, align: 'center', color: '#ffe66b' });
+    ctx.save();
+    roundRect(ctx, tx, ty, tw, th, 2);
+    ctx.clip();
+    ctx.translate(tx, ty);
+    ctx.scale(tw / VW, th / VH);
+    a.drawWater(ctx, this.t);
+    ctx.restore();
+    roundRect(ctx, tx, ty, tw, th, 2);
+    ctx.lineWidth = 0.7;
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.stroke();
+    if (gym) {
+      const img = leaderSprite(gym.leader);
+      if (img) ctx.drawImage(img, tx + tw - 13, ty + th - 21, img.width * 1.3, img.height * 1.3);
+    }
+    this.prevRect = button(ctx, '‹', 111, 42, 12, 18, { color: '#7c4fd0', size: 8 });
+    this.nextRect = button(ctx, '›', 197, 42, 12, 18, { color: '#7c4fd0', size: 8 });
+    this.thumbRect = { x: tx, y: ty, w: tw, h: th };
   }
 
   teamBox(ctx, keys, x, label, color, faceLeft, boss) {
@@ -656,6 +713,7 @@ export class DifficultyScene {
     this.arena.drawWater(ctx, this.t);
     dim(ctx, 0.72);
     title(ctx, 'ELIGE LA DIFICULTAD');
+    this.renderArenaPicker(ctx);
     this.teamBox(ctx, this.team, 8, 'TU EQUIPO', '#ffe66b', false, false);
     this.teamBox(ctx, this.rivals, VW - 98, 'RIVALES', '#ff7a8a', true, this.boss);
     this.menu.render(ctx);
@@ -761,9 +819,15 @@ export class BracketScene {
         drawCreature(ctx, k, 128 + i * 30, y + 14, isBoss ? 26 : 22, { faceLeft: true, white: !reveal, alpha: reveal ? 1 : 0.22, boss: isBoss && reveal, t: t + i });
       });
       const d = DIFFICULTY[TOURNAMENT_DIFFICULTY[r]];
-      text(ctx, reveal ? tour.rivals[r].map((k, i) => (final && i === 2 ? CREATURES[k].boss.name : CREATURES[k].name)).join(' · ') : '¿ ? ?', 214, y + 12, { size: 3.4, weight: 800, color: done ? 'rgba(255,255,255,0.5)' : '#fff' });
-      text(ctx, d.label, 214, y + 20, { size: 3.4, weight: 900, color: d.color });
-      if (done) text(ctx, '✓', 302, y + 19, { size: 10, weight: 900, align: 'center', color: '#4fd65a', stroke: '#1b1224', strokeW: 1.5 });
+      const gym = !final && tour.gyms ? GYMS[tour.gyms[r]] : null;
+      text(ctx, reveal ? tour.rivals[r].map((k, i) => (final && i === 2 ? CREATURES[k].boss.name : CREATURES[k].name)).join(' · ') : '¿ ? ?', 214, y + 9, { size: 3.2, weight: 800, color: done ? 'rgba(255,255,255,0.5)' : '#fff' });
+      text(ctx, gym ? `GIMNASIO ${gym.city}` : 'ESTADIO MUNDIAL', 214, y + 16, { size: 3.2, weight: 900, color: '#b9c6e4' });
+      text(ctx, gym ? `${d.label} · LÍDER ${gym.leader}` : d.label, 214, y + 23, { size: 3.2, weight: 900, color: d.color });
+      if (gym) {
+        const img = leaderSprite(gym.leader);
+        if (img) ctx.drawImage(img, 292, y + 3, img.width * 1.45, img.height * 1.45);
+      }
+      if (done) text(ctx, '✓', 300, y + 19, { size: 10, weight: 900, align: 'center', color: '#4fd65a', stroke: '#1b1224', strokeW: 1.5 });
     }
     this.menu.render(ctx);
     this.backRect = backButton(ctx, 'MENÚ');

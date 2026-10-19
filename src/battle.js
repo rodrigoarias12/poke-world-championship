@@ -1,5 +1,6 @@
 import { VW, VH, FIELD } from './config.js';
-import { typeMultiplier, CREATURES, DIFFICULTY, GMAX_FULL, GMAX_TIME, GMAX_SIZE } from './data.js';
+import { typeMultiplier, CREATURES, DIFFICULTY, GMAX_FULL, GMAX_TIME, GMAX_SIZE, GYMS } from './data.js';
+import { leaderSprite } from './art.js';
 import { Arena, vignette } from './arena.js';
 import { Effects, TYPE_COLORS } from './effects.js';
 import { Fighter } from './fighter.js';
@@ -9,6 +10,7 @@ import { renderHUD } from './hud.js';
 import { text, textWidth, roundRect, backOut, drawCreature } from './ui.js';
 import { speakName } from './announcer.js';
 import { hasGmaxSprite } from './sprites.js';
+import { fxRandom } from './rng.js';
 
 // Combate por equipos: cuando un Pokémon se debilita entra el siguiente
 export class Battle {
@@ -109,8 +111,8 @@ export class Battle {
     const minY = Math.min(FIELD.y1 - 10, f.tall + 14);
     if (f.y < minY) f.y += (minY - f.y) * Math.min(1, dt * 8);
     this.zoom = 0.09 * Math.sin(Math.PI * Math.min(1, fx.t / fx.dur));
-    if (Math.random() < 0.8) {
-      this.effects.trail(f.x + (Math.random() - 0.5) * (f.wide + 10), f.y - Math.random() * 6, ['#ffffff', '#ffb3c6', '#ff4d6d'], { size: 2, vy: -70, life: 0.7 });
+    if (fxRandom() < 0.8) {
+      this.effects.trail(f.x + (fxRandom() - 0.5) * (f.wide + 10), f.y - fxRandom() * 6, ['#ffffff', '#ffb3c6', '#ff4d6d'], { size: 2, vy: -70, life: 0.7 });
     }
     if (!fx.boom && fx.t >= 1.1) {
       fx.boom = true;
@@ -134,6 +136,8 @@ export class Battle {
   startCutin(f, m) {
     if (this.state !== 'fight') return;
     this.cutin = { f, m, t: 0, dur: 0.85, gname: f.gmax > 0 ? f.moveLabel(4) : null, gform: f.gform && f.gmax > 0 };
+    const tc = f.gmax > 0 ? '#ff2d55' : (TYPE_COLORS[m.fx] || TYPE_COLORS[f.type])[3];
+    this.ultTint = { color: tc, a: 0.4 };
     this.flashFx = { color: '#ffffff', a: 0.5 };
     this.zoom = 0.05;
     this.audio.ult();
@@ -188,8 +192,15 @@ export class Battle {
       return;
     }
     const n = Math.round(4 + r * 0.8);
-    this.effects.burst(x, y, ['#ffffff', '#e6faff', '#8fd3ff'], { count: n, speed: 30 + r * 3, size: 1.8, life: 0.55, up: 30 + r * 2, grav: 140 });
-    this.effects.ring(x, y, 'rgba(230,248,255,0.85)', { r: 2, maxR: r * 1.6, life: 0.6, width: 1 });
+    const lava = this.arena.T.floor === 'lava';
+    const drops = lava ? ['#fff3a0', '#ff9520', '#f0603a'] : ['#ffffff', '#e6faff', '#8fd3ff'];
+    this.effects.burst(x, y, drops, { count: n, speed: 30 + r * 3, size: 1.8, life: 0.55, up: 30 + r * 2, grav: 140 });
+    this.effects.ring(x, y, lava ? 'rgba(255,170,80,0.85)' : 'rgba(230,248,255,0.85)', { r: 2, maxR: r * 1.6, life: 0.6, width: 1 });
+  }
+
+  // Marca en el piso; sobre el agua no queda nada (salvo el hielo)
+  mark(x, y, fx, size) {
+    if (this.arena.onPlatform(x, y) || fx === 'hielo') this.effects.decal(x, y, fx, size);
   }
 
   // Aplica daño; devuelve false si el golpe fue esquivado
@@ -261,7 +272,7 @@ export class Battle {
     st.maxCombo = Math.max(st.maxCombo, att.combo);
 
     const hy = def.y - def.tall - 4;
-    this.effects.float(String(dmg), def.x + (Math.random() - 0.5) * 8, hy, {
+    this.effects.float(String(dmg), def.x + (fxRandom() - 0.5) * 8, hy, {
       color: crit ? '#ffe45c' : '#ffffff',
       size: crit ? 8 : o.tick ? 4.5 : 6.5,
       life: 0.7,
@@ -294,7 +305,7 @@ export class Battle {
     const hitColors = TYPE_COLORS[fx] || TYPE_COLORS[att.type];
     if (!o.tick) {
       this.audio.hitFx(fx, dmg >= 14);
-      this.effects.impact(def.x + (Math.random() - 0.5) * 4, def.y - def.tall * 0.5, 7 + Math.min(14, dmg * 0.6), hitColors[2]);
+      this.effects.impact(def.x + (fxRandom() - 0.5) * 4, def.y - def.tall * 0.5, 7 + Math.min(14, dmg * 0.6), hitColors[2]);
     }
     if (dmg >= 18 && !o.tick) {
       this.flashScreen(hitColors[1], 0.3);
@@ -306,6 +317,8 @@ export class Battle {
     if (fx === 'hielo') def.frozenT = Math.max(def.frozenT, 1.0);
     if (!o.tick) {
       this.effects.burst(def.x, def.y - def.tall / 2, ['#ffffff', ...(TYPE_COLORS[o.m?.fx] || TYPE_COLORS[att.type]).slice(0, 3)], { count: 6 + Math.round(dmg / 2), speed: 60, size: 1.8 });
+      this.effects.typeHit(def.x, def.y - def.tall / 2, fx, dmg);
+      if (dmg >= 12) this.mark(def.x, def.y, fx, 6 + Math.min(14, dmg * 0.4));
     }
     if (def.hp <= 0) this.faint(def);
     return true;
@@ -385,6 +398,10 @@ export class Battle {
     this.shakeAmt = Math.max(0, this.shakeAmt - dt * 18);
     if (this.flashFx) this.flashFx.a = Math.max(0, this.flashFx.a - dt * 3);
     this.zoom = Math.max(0, (this.zoom || 0) - dt * 0.12);
+    if (this.ultTint && !this.cutin) {
+      this.ultTint.a -= dt * 0.3;
+      if (this.ultTint.a <= 0) this.ultTint = null;
+    }
     if (this.cutin) {
       this.cutin.t += dt;
       if (this.cutin.t >= this.cutin.dur) this.cutin = null;
@@ -483,8 +500,8 @@ export class Battle {
 
   render(ctx) {
     const t = this.t;
-    const sx = (Math.random() - 0.5) * this.shakeAmt;
-    const sy = (Math.random() - 0.5) * this.shakeAmt;
+    const sx = (fxRandom() - 0.5) * this.shakeAmt;
+    const sy = (fxRandom() - 0.5) * this.shakeAmt;
     ctx.save();
     const z = 1 + (this.zoom || 0);
     const focus = this.cutin ? this.cutin.f : this.gmaxFx ? this.gmaxFx.f : null;
@@ -495,6 +512,7 @@ export class Battle {
     ctx.translate(-cx, -cy);
     ctx.translate(Math.round(sx * 2) / 2, Math.round(sy * 2) / 2);
     this.arena.drawWater(ctx, t);
+    this.effects.renderDecals(ctx);
     this.renderGiantSky(ctx);
     renderGroundHazards(ctx, this, t);
     this.effects.renderRings(ctx);
@@ -516,6 +534,17 @@ export class Battle {
     if (this.gmaxFx) this.renderGmaxFx(ctx);
     ctx.restore();
     vignette(ctx);
+    if (this.ultTint) {
+      // Bordes teñidos del color del ataque definitivo
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, this.ultTint.a);
+      const g = ctx.createRadialGradient(VW / 2, VH / 2, VH * 0.3, VW / 2, VH / 2, VW * 0.65);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, this.ultTint.color);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, VW, VH);
+      ctx.restore();
+    }
 
     if (this.flashFx && this.flashFx.a > 0) {
       ctx.save();
@@ -759,6 +788,19 @@ export class Battle {
       ctx.fillRect(0, cy + 21, VW, 1.2);
       text(ctx, this.round || 'COMBATE', VW / 2 + (1 - k) * -160, cy - 5, { size: 14, weight: 900, align: 'center', color: '#ffe66b', stroke: '#1b1224', strokeW: 3 });
       text(ctx, `${this.player.name}  vs  ${this.enemy.name}`, VW / 2 + (1 - k) * 160, cy + 12, { size: 8, weight: 800, align: 'center', color: '#ffffff', stroke: '#1b1224', strokeW: 2 });
+      // Gimnasio: cartel con el líder
+      const gym = GYMS[this.arena.T.gym];
+      if (gym) {
+        const img = leaderSprite(gym.leader);
+        if (img) {
+          const s = 2.6;
+          ctx.drawImage(img, VW - 18 - img.width * s + (1 - k) * 120, cy + 20 - img.height * s, img.width * s, img.height * s);
+        }
+        roundRect(ctx, VW / 2 - 92, cy - 34, 184, 10, 3);
+        ctx.fillStyle = 'rgba(10,6,20,0.85)';
+        ctx.fill();
+        text(ctx, `${this.arena.name}  ·  LÍDER ${gym.leader}`, VW / 2, cy - 27, { size: 4.6, weight: 900, align: 'center', color: '#ffe66b' });
+      }
       ctx.restore();
       if (st > 1.2) {
         const n = Math.ceil(3.0 - st);

@@ -13,6 +13,8 @@ const KEYMAP = {
   KeyE: ['m4'], KeyI: ['m4'],
   // Gigamax: R (u O)
   KeyR: ['gx'], KeyO: ['gx'],
+  // Cambiar de cancha (pantalla de dificultad)
+  KeyC: ['cancha'],
   Enter: ['confirm'], NumpadEnter: ['confirm'],
   Escape: ['back', 'pause'], Backspace: ['back'], KeyP: ['pause'],
   KeyM: ['mute'], KeyN: ['sfx'], KeyV: ['voice'],

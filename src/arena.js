@@ -1,6 +1,9 @@
 // Arena acuática: piscina con plataformas de madera y Poké Balls flotantes
 import { VW, VH } from './config.js';
+import { fxRandom } from './rng.js';
 import { rng } from './crowd.js';
+import { GYMS } from './data.js';
+import { GYM_THEMES, badgeImage } from './gyms.js';
 
 const RES = 2; // píxeles del fondo por unidad lógica
 
@@ -36,6 +39,8 @@ const THEMES = {
     caustic: 0.07,
   },
 };
+
+for (const [key, t] of Object.entries(GYM_THEMES)) THEMES[key] = { ...t, gym: key, badge: GYMS[key].badge };
 
 function makeCanvas(w, h) {
   const c = document.createElement('canvas');
@@ -81,6 +86,72 @@ function drawPlatform(ctx, x, y, r, rand) {
   ctx.restore();
   ctx.lineWidth = 0.8;
   ctx.strokeStyle = '#3d2410';
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Flotador blanco y celeste (pileta de Misty)
+function drawFloat(ctx, x, y, r) {
+  const ry = r * 0.55;
+  ctx.save();
+  ctx.scale(RES, RES);
+  ctx.fillStyle = 'rgba(5,30,60,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(x + 2, y + 5, r + 2, ry + 1.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#c9dbe6';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 3, r, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(x - r, y, r * 2, 3);
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, ry, 0, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = '#f6fafc';
+  ctx.fillRect(x - r, y - ry, r * 2, ry * 2);
+  ctx.fillStyle = '#3fa7ff';
+  for (let i = -r; i < r; i += 8) ctx.fillRect(x + i, y - ry, 4, ry * 2);
+  ctx.restore();
+  ctx.lineWidth = 0.8;
+  ctx.strokeStyle = '#1f5f8f';
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Roca volcánica con grietas encendidas (Blaine)
+function drawBasalt(ctx, x, y, r, rand) {
+  const ry = r * 0.55;
+  ctx.save();
+  ctx.scale(RES, RES);
+  ctx.fillStyle = 'rgba(255,120,40,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 4, r + 3, ry + 2.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#2e2626';
+  ctx.beginPath();
+  ctx.ellipse(x, y + 4, r, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(x - r, y, r * 2, 4);
+  ctx.fillStyle = '#4a4040';
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#ff8a30';
+  ctx.lineWidth = 0.6;
+  for (let i = 0; i < 4; i++) {
+    const a = rand() * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(a) * r * 0.7, y + Math.sin(a) * ry * 0.7);
+    ctx.stroke();
+  }
+  ctx.lineWidth = 0.8;
+  ctx.strokeStyle = '#1a1414';
   ctx.beginPath();
   ctx.ellipse(x, y, r, ry, 0, 0, Math.PI * 2);
   ctx.stroke();
@@ -138,6 +209,19 @@ function renderBackground(theme, seed, platforms, balls) {
   const rand = rng(seed);
   const c = makeCanvas(VW * RES, VH * RES);
   const ctx = c.getContext('2d');
+  if (T.paint) {
+    ctx.save();
+    ctx.scale(RES, RES);
+    T.paint(ctx, rand);
+    ctx.restore();
+    const fg = makeCanvas(VW * RES, VH * RES);
+    const fctx = fg.getContext('2d');
+    fctx.save();
+    fctx.scale(RES, RES);
+    T.decor?.(fctx, rand);
+    fctx.restore();
+    return { bg: c, fg };
+  }
   ctx.fillStyle = T.water[0];
   ctx.fillRect(0, 0, c.width, c.height);
   // Manchas de profundidad
@@ -183,16 +267,29 @@ function renderBackground(theme, seed, platforms, balls) {
 
   // Luz suave arriba y más profundidad abajo
   const g = ctx.createLinearGradient(0, 0, 0, c.height);
-  g.addColorStop(0, 'rgba(255,255,255,0.07)');
+  g.addColorStop(0, T.floor === 'lava' ? 'rgba(255,200,80,0.08)' : 'rgba(255,255,255,0.07)');
   g.addColorStop(0.5, 'rgba(255,255,255,0)');
-  g.addColorStop(1, 'rgba(0,10,40,0.18)');
+  g.addColorStop(1, T.floor === 'lava' ? 'rgba(40,0,0,0.25)' : 'rgba(0,10,40,0.18)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 9 * RES, c.width, c.height - 14 * RES);
+  if (T.overlay) {
+    ctx.save();
+    ctx.scale(RES, RES);
+    T.overlay(ctx, rand);
+    ctx.restore();
+  }
 
   const fg = makeCanvas(VW * RES, VH * RES);
   const fctx = fg.getContext('2d');
-  for (const b of balls) drawBallPlatform(fctx, b.x, b.y, b.r);
-  for (const p of platforms) drawPlatform(fctx, p.x, p.y, p.r, rand);
+  for (const b of balls) {
+    if (T.platform === 'basalt') drawBasalt(fctx, b.x, b.y, b.r, rand);
+    else drawBallPlatform(fctx, b.x, b.y, b.r);
+  }
+  for (const p of platforms) {
+    if (T.platform === 'float') drawFloat(fctx, p.x, p.y, p.r);
+    else if (T.platform === 'basalt') drawBasalt(fctx, p.x, p.y, p.r, rand);
+    else drawPlatform(fctx, p.x, p.y, p.r, rand);
+  }
   return { bg: c, fg };
 }
 
@@ -257,6 +354,12 @@ export class Arena {
       { x: VW + 4, y: 110 + rand() * 30, r: 28 },
     ];
     this.platforms.sort((a, b) => a.y - b.y);
+    // Piso firme: todo se pisa, no hay agua ni plataformas
+    this.ground = this.T.floor === 'ground';
+    if (this.ground) {
+      this.platforms = [];
+      this.balls = [];
+    }
     const layers = renderBackground(theme, seed, this.platforms, this.balls);
     this.bg = layers.bg;
     this.fg = layers.fg;
@@ -294,8 +397,9 @@ export class Arena {
     ctx.restore();
   }
 
-  // ¿Está este punto sobre una plataforma?
+  // ¿Está este punto sobre una plataforma (o en piso firme)?
   onPlatform(x, y) {
+    if (this.ground) return true;
     for (const p of [...this.platforms, ...this.balls]) {
       const dx = (x - p.x) / p.r;
       const dy = (y - p.y) / (p.r * 0.55);
@@ -307,14 +411,14 @@ export class Arena {
   freeze(x, y) {
     if (this.ice.length > 80) this.ice.shift();
     const pts = [];
-    const n = 6 + Math.floor(Math.random() * 3);
-    const r = 5 + Math.random() * 6;
+    const n = 6 + Math.floor(fxRandom() * 3);
+    const r = 5 + fxRandom() * 6;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
-      const rr = r * (0.6 + Math.random() * 0.5);
+      const rr = r * (0.6 + fxRandom() * 0.5);
       pts.push([Math.cos(a) * rr, Math.sin(a) * rr * 0.6]);
     }
-    this.ice.push({ x, y, pts, life: 7 + Math.random() * 2 });
+    this.ice.push({ x, y, pts, life: 7 + fxRandom() * 2 });
   }
 
   update(dt) {
@@ -324,17 +428,24 @@ export class Arena {
 
   drawWater(ctx, t) {
     ctx.drawImage(this.bg, 0, 0, VW, VH);
+    if (this.ground) {
+      this.drawBadge(ctx);
+      this.T.animate?.(ctx, t, this);
+      ctx.drawImage(this.fg, 0, 0, VW, VH);
+      this.drawIce(ctx);
+      return;
+    }
     this.drawCaustics(ctx, t);
     // Espuma donde las plataformas tocan el agua
     ctx.lineWidth = 0.8;
     [...this.platforms, ...this.balls].forEach((p, i) => {
       const side = this.balls.includes(p) ? 5 : 4;
       const w = Math.sin(t * 2.2 + i * 1.7) * 0.7;
-      ctx.strokeStyle = 'rgba(235,248,255,0.4)';
+      ctx.strokeStyle = this.T.floor === 'lava' ? 'rgba(255,190,90,0.5)' : 'rgba(235,248,255,0.4)';
       ctx.beginPath();
       ctx.ellipse(p.x, p.y + side + 0.6, p.r + 1.6 + w, p.r * 0.55 + 1.1 + w * 0.6, 0, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.strokeStyle = 'rgba(235,248,255,0.16)';
+      ctx.strokeStyle = this.T.floor === 'lava' ? 'rgba(255,190,90,0.2)' : 'rgba(235,248,255,0.16)';
       ctx.beginPath();
       ctx.ellipse(p.x, p.y + side + 0.8, p.r + 4 - w, p.r * 0.55 + 2.8 - w * 0.6, 0, 0, Math.PI * 2);
       ctx.stroke();
@@ -346,11 +457,31 @@ export class Arena {
       const x = (g.x + t * 3 * g.speed) % VW;
       if (this.onPlatform(x, g.y)) continue;
       ctx.globalAlpha = (a - 0.3) * 0.8;
-      ctx.fillStyle = '#e8f6ff';
+      ctx.fillStyle = this.T.glint || '#e8f6ff';
       ctx.fillRect(Math.round(x), Math.round(g.y), g.w, 0.7);
     }
     ctx.globalAlpha = 1;
+    this.drawBadge(ctx);
+    this.T.animate?.(ctx, t, this);
     ctx.drawImage(this.fg, 0, 0, VW, VH);
+    this.drawIce(ctx);
+  }
+
+  // Medalla del gimnasio pintada en el centro de la cancha
+  drawBadge(ctx) {
+    if (!this.T.badge) return;
+    const img = badgeImage(this.T.badge);
+    if (!img) return;
+    ctx.save();
+    ctx.globalAlpha = this.ground ? 0.3 : 0.22;
+    ctx.translate(VW / 2, 92);
+    ctx.scale(1, 0.58);
+    const s = 34 / Math.max(img.width, img.height);
+    ctx.drawImage(img, (-img.width * s) / 2, (-img.height * s) / 2, img.width * s, img.height * s);
+    ctx.restore();
+  }
+
+  drawIce(ctx) {
     // Hielo de Rayo Hielo
     for (const i of this.ice) {
       ctx.globalAlpha = Math.min(1, i.life);
@@ -382,4 +513,8 @@ export function vignette(ctx) {
     v.fillRect(0, 0, VW, VH);
   }
   ctx.drawImage(vignetteCanvas, 0, 0, VW, VH);
+}
+
+export function arenaName(key) {
+  return THEMES[key]?.name || '';
 }

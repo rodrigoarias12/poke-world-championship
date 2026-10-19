@@ -72,6 +72,7 @@ export function snapshot(b, events) {
     zm: pack(b.zoom || 0),
     sh: pack(b.shakeAmt),
     fl: b.flashFx && b.flashFx.a > 0 ? pack(b.flashFx) : null,
+    ut: b.ultTint ? pack(b.ultTint) : null,
     ci: b.cutin ? { s: b.cutin.f.side, m: MOVE_KEY.get(b.cutin.m), t: pack(b.cutin.t), d: b.cutin.dur, g: b.cutin.gname, gf: b.cutin.gform } : null,
     gx: pack(b.gx),
     gf: b.gmaxFx ? { s: b.gmaxFx.f.side, t: pack(b.gmaxFx.t), d: b.gmaxFx.dur } : null,

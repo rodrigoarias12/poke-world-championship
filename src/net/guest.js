@@ -78,6 +78,7 @@ export class GuestBattle extends Battle {
     this.zoom = s.zm;
     this.shakeAmt = s.sh;
     if (s.fl) this.flashFx = { ...s.fl };
+    this.ultTint = s.ut ? { ...s.ut } : null;
     s.tm.forEach(([idx, fainted], side) => {
       this.teams[side].idx = idx;
       this.teams[side].fainted = fainted;

@@ -1,8 +1,10 @@
 # Poké World Championship
 
-Juego de combates Pokémon para el navegador: arma un equipo de 3, elige la dificultad
-y pelea en una arena acuática en tiempo real. Tiene un torneo de 4 rondas con un
-jefe Mega en la final. Nació para jugar en familia, inspirado en los videos de
+Juego de combates Pokémon para el navegador: arma un equipo de 3 entre 28 Pokémon, elige
+la cancha y la dificultad y pelea en tiempo real. Hay 11 canchas: tres arenas acuáticas y
+los 8 gimnasios de Kanto (Brock, Misty, Lt. Surge, Erika, Koga, Sabrina, Blaine y Giovanni).
+El torneo pasa por tres gimnasios, cada líder con su Pokémon estrella, y termina con un
+jefe Mega. Nació para jugar en familia, inspirado en los videos de
 "Pokémon Arena" de Big Kid Nation.
 
 **Jugar:** https://pokechampions.vercel.app

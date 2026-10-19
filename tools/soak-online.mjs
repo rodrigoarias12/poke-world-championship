@@ -46,7 +46,7 @@ const started = Date.now();
 
 for (let i = 0; i < N; i++) {
   const roster = shuffle(ROSTER);
-  const cfg = { teamA: roster.slice(0, 3), teamB: roster.slice(3, 6), bossLast: false, difficulty: 'normal', arena: ARENAS[i % 3], round: 'EN LÍNEA', seed: i + 1 };
+  const cfg = { teamA: roster.slice(0, 3), teamB: roster.slice(3, 6), bossLast: false, difficulty: 'normal', arena: ARENAS[i % ARENAS.length], round: 'EN LÍNEA', seed: i + 1 };
   try {
     const host = new Battle(game, cfg);
     host.online = true;

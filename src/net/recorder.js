@@ -2,7 +2,7 @@
 // para mandarlos al invitado junto con la próxima foto (snapshot).
 import { pack } from './protocol.js';
 
-const FX = ['burst', 'trail', 'dust', 'ring', 'float', 'ghost', 'impact', 'circle', 'add'];
+const FX = ['burst', 'trail', 'dust', 'ring', 'float', 'ghost', 'impact', 'circle', 'add', 'typeHit', 'decal'];
 const AUDIO = ['play', 'cry', 'cast', 'hitFx', 'sustain', 'ult'];
 const ARENA = ['freeze'];
 

@@ -1,4 +1,5 @@
 import { TYPE_COLORS } from './effects.js';
+import { fxRandom } from './rng.js';
 import { FIELD, VW } from './config.js';
 import { boulderSprite } from './art.js';
 
@@ -81,7 +82,7 @@ export function spawnProjectile(b, f, m, dx, dy) {
   });
 }
 
-const SOUND = { spark: 'zap', fireball: 'fire', bigfire: 'fire', water: 'water', bubble: 'water', needle: 'needle', seed: 'needle', orb: 'orb', star: 'needle', note: 'orb', psy: 'orb' };
+const SOUND = { spark: 'zap', fireball: 'fire', bigfire: 'fire', water: 'water', bubble: 'water', needle: 'needle', seed: 'needle', orb: 'orb', star: 'needle', note: 'orb', psy: 'orb', shuriken: 'needle', moon: 'orb', boulder: 'rock' };
 
 // ------------------------------------------------------------- Iniciar
 
@@ -244,7 +245,8 @@ export function updateAction(f, b, dt) {
         a.hit = true;
         const hx = f.x + a.dir[0] * (f.r + m.range * 0.5);
         const hy = f.y + a.dir[1] * (f.r + m.range * 0.5);
-        slashFx(b, hx, hy - f.tall * 0.4, colors, a.dir);
+        if (m.bite) biteFx(b, hx, hy - f.tall * 0.4, colors);
+        else slashFx(b, hx, hy - f.tall * 0.4, colors, a.dir);
         const d = Math.hypot(opp.x - f.x, opp.y - f.y);
         if (opp.alive && d < f.r + opp.r + m.range) {
           b.damage(f, opp, m.dmg, { m, kb: m.kb, dirX: a.dir[0], dirY: a.dir[1], stun: m.stun });
@@ -314,7 +316,7 @@ export function updateAction(f, b, dt) {
         f.facing = Math.cos(a.angle) >= 0 ? 1 : -1;
         const mx = f.x + Math.cos(a.angle) * f.r;
         const my = f.y - f.mouthH() + Math.sin(a.angle) * f.r;
-        const ang = Math.random() * Math.PI * 2;
+        const ang = fxRandom() * Math.PI * 2;
         b.effects.add({ x: mx + Math.cos(ang) * 14, y: my + Math.sin(ang) * 10, vx: -Math.cos(ang) * 50, vy: -Math.sin(ang) * 40, life: 0.25, max: 0.25, size: 1.8, color: colors[1], grav: 0, drag: 0 });
         if (a.charge <= 0) {
           a.t = 0;
@@ -347,9 +349,9 @@ export function updateAction(f, b, dt) {
         }
         if (m.freeze) {
           for (let d = 10; d < a.len; d += 18) {
-            const px = sx + cx * d + (Math.random() - 0.5) * 6;
-            const py = sy + cy * d + (Math.random() - 0.5) * 4;
-            if (!b.arena.onPlatform(px, py) && Math.random() < 0.35) b.arena.freeze(px, py);
+            const px = sx + cx * d + (fxRandom() - 0.5) * 6;
+            const py = sy + cy * d + (fxRandom() - 0.5) * 4;
+            if (!b.arena.onPlatform(px, py) && fxRandom() < 0.35) b.arena.freeze(px, py);
           }
         }
       }
@@ -362,13 +364,13 @@ export function updateAction(f, b, dt) {
         for (let i = 0; i < 2; i++) b.effects.trail(ex, ey - hy, colors, { size: 2.2, jitter: 4, vy: -24 });
       } else {
         for (let i = 0; i < 3; i++) {
-          const d = Math.random() * a.len;
+          const d = fxRandom() * a.len;
           const spread = (d / a.len) * m.width * 0.8;
           b.effects.add({
-            x: sx + cx * d + (Math.random() - 0.5) * spread,
-            y: sy + cy * d - hy + (Math.random() - 0.5) * spread,
-            vx: cx * 90, vy: cy * 90 - 10, life: 0.25, max: 0.25, size: 2 + Math.random() * 2,
-            color: colors[Math.floor(Math.random() * 4)], grav: 0, drag: 3,
+            x: sx + cx * d + (fxRandom() - 0.5) * spread,
+            y: sy + cy * d - hy + (fxRandom() - 0.5) * spread,
+            vx: cx * 90, vy: cy * 90 - 10, life: 0.25, max: 0.25, size: 2 + fxRandom() * 2,
+            color: colors[Math.floor(fxRandom() * 4)], grav: 0, drag: 3,
           });
         }
       }
@@ -385,7 +387,7 @@ export function updateAction(f, b, dt) {
       while (a.spawned < n && a.t >= a.spawned * 0.22) {
         b.hazards.push({
           kind: 'ring', m, owner: f, x: f.x, y: f.y, r: 4, speed: m.speed || 120, maxR: m.maxR * (f.boss ? 1.25 : 1),
-          width: 7, dmg: m.dmg, kb: m.kb ?? (m.sleep ? 20 : 120), stun: m.stun || 0, sleep: !!m.sleep, hit: false, colors, notes: m.fx === 'hada',
+          width: 7, dmg: m.dmg, kb: m.kb ?? (m.sleep ? 20 : 120), stun: m.stun || 0, sleep: !!m.sleep, hit: false, colors, notes: !!m.notes,
         });
         a.spawned++;
         b.audio.play(m.sleep ? 'ready' : 'explode');
@@ -407,6 +409,7 @@ export function updateAction(f, b, dt) {
         b.shake(m.maxR > 80 ? 7 : 4);
         b.audio.play('quake');
         b.splash(f.x, f.y, 16);
+        b.mark(f.x, f.y, 'roca', m.maxR > 80 ? 22 : 14);
         b.crowdExcite(0.8);
       }
       if (a.t >= 0.55) f.action = null;
@@ -438,7 +441,7 @@ export function updateAction(f, b, dt) {
         }
         f.vx = mx * f.speed * 1.4;
         f.vy = my * f.speed * 1.4;
-        if (m.dig && Math.random() < 0.6) b.effects.dust(f.x, f.y, 1);
+        if (m.dig && fxRandom() < 0.6) b.effects.dust(f.x, f.y, 1);
         if (a.t >= m.up) {
           a.phase = 'down';
           a.t = 0;
@@ -524,6 +527,14 @@ function slashFx(b, x, y, colors, dir, i = 0) {
   }
 }
 
+// Mordida: dos filas de colmillos que se cierran
+function biteFx(b, x, y, colors) {
+  for (const top of [true, false]) {
+    b.effects.add({ x, y: y + (top ? -7 : 7), vx: 0, vy: top ? 45 : -45, life: 0.16, max: 0.16, size: 9, color: '#ffffff', grav: 0, drag: 0, shape: 'jaw', top });
+  }
+  b.effects.burst(x, y, colors, { count: 8, speed: 50, size: 1.6, life: 0.3 });
+}
+
 // ---------------------------------------------------------- Proyectiles
 
 export function killProjectile(b, p) {
@@ -541,6 +552,7 @@ function explodeProjectile(b, p) {
   b.effects.burst(p.x, p.y - p.h, colors, { count: big ? 40 : 20, speed: big ? 130 : 80, size: big ? 3 : 2.2, life: 0.6 });
   b.effects.ring(p.x, p.y, colors[1], { maxR: p.explode, life: 0.35, width: big ? 3 : 2 });
   b.splash(p.x, p.y, p.explode * 0.5);
+  b.mark(p.x, p.y, p.fx, p.explode * 0.6);
   b.audio.play('explode');
   b.shake(big ? 6 : 2);
   if (!p.directHit && opp.alive && opp.lift < 20 && Math.hypot(opp.x - p.x, opp.y - p.y) < p.explode + opp.r * 0.5) {
@@ -635,16 +647,26 @@ function trailFx(b, p) {
       e.trail(p.x, y, TYPE_COLORS.agua, { size: 1.6, jitter: 1, vy: 6, life: 0.25 });
       break;
     case 'bubble':
-      if (Math.random() < 0.3) e.trail(p.x, y, ['#e6faff', '#8fd3ff'], { size: 1, jitter: 3, vy: -6 });
+      if (fxRandom() < 0.3) e.trail(p.x, y, ['#e6faff', '#8fd3ff'], { size: 1, jitter: 3, vy: -6 });
       break;
     case 'spark':
       e.trail(p.x, y, ['#ffffff', '#7df9ff', '#fff6a0'], { size: 1.2, jitter: 1.5, vy: 0, life: 0.15 });
       break;
     case 'star':
-      if (Math.random() < 0.6) e.trail(p.x, y, TYPE_COLORS.estrella, { size: 1.2, jitter: 1, vy: 0, life: 0.25 });
+      if (fxRandom() < 0.6) e.trail(p.x, y, TYPE_COLORS.estrella, { size: 1.2, jitter: 1, vy: 0, life: 0.25 });
+      break;
+    case 'shuriken':
+      e.trail(p.x, y, TYPE_COLORS.agua, { size: 1.6, jitter: p.r * 0.6, vy: 4, life: 0.3 });
+      break;
+    case 'moon':
+      e.trail(p.x, y, TYPE_COLORS.lunar, { size: 2, jitter: p.r * 0.5, vy: -4, life: 0.45 });
+      if (fxRandom() < 0.4) e.add({ x: p.x + (fxRandom() - 0.5) * p.r * 2, y: y + (fxRandom() - 0.5) * p.r * 2, vx: 0, vy: -8, life: 0.5, max: 0.5, size: 3, color: '#ffffff', grav: 0, drag: 1, shape: 'sparkle', rot: 0, spin: 4 });
+      break;
+    case 'boulder':
+      if (fxRandom() < 0.4) e.dust(p.x, p.y, 1);
       break;
     default:
-      if (Math.random() < 0.5) e.trail(p.x, y, colors, { size: 1.4, jitter: 2, vy: -4, life: 0.35 });
+      if (fxRandom() < 0.5) e.trail(p.x, y, colors, { size: 1.4, jitter: 2, vy: -4, life: 0.35 });
   }
 }
 
@@ -857,6 +879,39 @@ export function renderProjectiles(ctx, b, t) {
         ctx.restore();
         break;
       }
+      case 'shuriken': {
+        // Shuriken de agua girando
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(t * 18);
+        const R = p.r * 1.5;
+        for (const [rr, c] of [[R + 0.8, '#1d4f9a'], [R, '#4aa8e8'], [R * 0.55, '#e6faff']]) {
+          ctx.fillStyle = c;
+          ctx.beginPath();
+          for (let i = 0; i < 8; i++) {
+            const a = (i * Math.PI) / 4;
+            const r = i % 2 ? rr * 0.32 : rr;
+            ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+        break;
+      }
+      case 'moon': {
+        // Fuerza Lunar: luna rosada con brillo
+        const pul = 1 + Math.sin(t * 10) * 0.08;
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        circle(ctx, x, y, p.r * 1.9 * pul, '#ffc8ec');
+        ctx.restore();
+        circle(ctx, x, y, p.r * pul, '#fff0fa');
+        circle(ctx, x + p.r * 0.35, y - p.r * 0.2, p.r * 0.8 * pul, '#ffc8ec');
+        circle(ctx, x - p.r * 0.35, y + p.r * 0.25, p.r * 0.18, '#e888d0');
+        circle(ctx, x - p.r * 0.1, y - p.r * 0.45, p.r * 0.12, '#e888d0');
+        break;
+      }
       case 'boulder': {
         const img = boulderSprite();
         ctx.save();
@@ -896,11 +951,13 @@ export function updateHazards(b, dt) {
     if (h.kind === 'ring' || h.kind === 'quake') {
       h.r += h.speed * dt;
       for (let i = 0; i < 4; i++) {
-        const a = Math.random() * Math.PI * 2;
+        const a = fxRandom() * Math.PI * 2;
         const px = h.x + Math.cos(a) * h.r;
         const py = h.y + Math.sin(a) * h.r * 0.6;
         if (h.kind === 'quake') {
-          if (Math.random() < 0.4) b.effects.burst(px, py, ['#e6faff', '#8fd3ff', '#ffffff'], { count: 1, speed: 20, size: 1.6, life: 0.4, up: 25, grav: 80 });
+          if (fxRandom() < 0.4) b.effects.burst(px, py, ['#e6faff', '#8fd3ff', '#ffffff'], { count: 1, speed: 20, size: 1.6, life: 0.4, up: 25, grav: 80 });
+        } else if (m.fx === 'petalo') {
+          b.effects.add({ x: px, y: py - 2, vx: (fxRandom() - 0.5) * 20, vy: -18, life: 0.7, max: 0.7, size: 2.4, color: h.colors[1 + (i % 3)], grav: 20, drag: 2, shape: 'petal', rot: fxRandom() * 6, spin: 8 });
         } else b.effects.trail(px, py - 2, h.colors, { size: 2, jitter: 1, vy: -14 });
       }
       if (!h.hit && target.alive && target.lift < 20) {
@@ -924,6 +981,8 @@ export function updateHazards(b, dt) {
         const colors = pal(m);
         b.effects.burst(h.x, h.y - 3, colors, { count: 30, speed: 80, size: 2.2, life: 0.6, up: 20 });
         if (m.visual === 'psy') b.effects.ring(h.x, h.y, colors[1], { maxR: h.r * 1.4, life: 0.4, width: 3 });
+        if (m.visual === 'spikes') b.effects.typeHit(h.x, h.y - 4, 'roca', 20);
+        b.mark(h.x, h.y, m.visual === 'spikes' ? 'roca' : m.fx, h.r * 0.8);
         if (inside) b.damage(h.owner, target, m.burst, { m, kb: m.visual === 'psy' ? 120 : 0, dirX: 0, dirY: -1, root: m.root, stun: m.stun });
       }
       if (h.burst) {
@@ -941,10 +1000,10 @@ export function updateHazards(b, dt) {
           h.tick = 0.25;
           if (inside && m.tick) b.damage(h.owner, target, m.tick, { m, kb: 0, noCrit: true, hitstop: 0, tick: true, slow: m.slow ? 0.35 : 0 });
         }
-        if (Math.random() < 0.5) {
+        if (fxRandom() < 0.5) {
           const colors = pal(m);
-          const a = Math.random() * Math.PI * 2;
-          const d = Math.random() * h.r;
+          const a = fxRandom() * Math.PI * 2;
+          const d = fxRandom() * h.r;
           b.effects.trail(h.x + Math.cos(a) * d, h.y + Math.sin(a) * d * 0.6, colors, { size: 1.8, vy: m.visual === 'fire' ? -22 : -10 });
         }
       }
@@ -954,8 +1013,11 @@ export function updateHazards(b, dt) {
       if (!h.hit && h.t >= m.warn) {
         h.hit = true;
         b.shake(4);
-        b.audio.play('thunder');
-        b.effects.burst(h.x, h.y, ['#ffffff', '#fff6a0', '#ffe14d'], { count: 24, speed: 90, size: 2, life: 0.4, up: 20 });
+        const psy = m.visual === 'psy';
+        b.audio.play(psy ? 'explode' : 'thunder');
+        b.effects.burst(h.x, h.y, psy ? pal(m) : ['#ffffff', '#fff6a0', '#ffe14d'], { count: 24, speed: 90, size: 2, life: 0.4, up: 20 });
+        if (psy) b.effects.ring(h.x, h.y, '#ff8fbf', { maxR: h.r * 1.6, life: 0.4, width: 2.5 });
+        b.mark(h.x, h.y, m.fx, h.r * 0.9);
         b.splash(h.x, h.y, 10);
         if (target.alive && target.lift < 20 && Math.hypot(target.x - h.x, (target.y - h.y) / 0.6) < h.r + target.r * 0.5) {
           b.damage(h.owner, target, m.dmg, { m, kb: 60, dirX: 0, dirY: 1, stun: m.stun });
@@ -982,8 +1044,8 @@ export function updateHazards(b, dt) {
           if (Math.abs(px * h.dx + py * h.dy) < 8 && Math.abs(-px * h.dy + py * h.dx) < half) killProjectile(b, p);
         }
       }
-      if (Math.random() < 0.9) {
-        const k = (Math.random() - 0.5) * m.width;
+      if (fxRandom() < 0.9) {
+        const k = (fxRandom() - 0.5) * m.width;
         b.effects.burst(h.x - h.dy * k, h.y + h.dx * k - 6, ['#ffffff', '#e6faff', '#8fd3ff'], { count: 1, speed: 30, size: 2, life: 0.5, up: 30, grav: 120 });
       }
       if (h.t > 3 || h.x < -80 || h.x > VW + 80 || h.y < -80 || h.y > 260) h.done = true;
@@ -1045,7 +1107,7 @@ export function renderGroundHazards(ctx, b, t) {
     } else if (h.kind === 'strike' && !h.hit) {
       ctx.save();
       ctx.globalAlpha = 0.35 + Math.sin(t * 40) * 0.2;
-      ctx.fillStyle = '#ffe14d';
+      ctx.fillStyle = m.visual === 'psy' ? '#f95587' : '#ffe14d';
       ctx.beginPath();
       ctx.ellipse(h.x, h.y, h.r, h.r * 0.6, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -1118,6 +1180,40 @@ export function renderHazards(ctx, b, t) {
         }
       }
       ctx.restore();
+    } else if (h.kind === 'zone' && h.burst && m.visual === 'spikes') {
+      const age = h.t - m.warn;
+      const life = Math.max(0, 1 - age / m.dur);
+      const grow = Math.min(1, age * 10);
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, life * 3);
+      const n = 9;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + i * 0.7;
+        const d = ((((i * 53) % 10) / 10) * 0.7 + 0.15) * h.r;
+        const vx = h.x + Math.cos(a) * d;
+        const vy = h.y + Math.sin(a) * d * 0.6;
+        const hh = (14 + ((i * 17) % 9)) * grow;
+        const w = 4 + ((i * 7) % 3);
+        ctx.fillStyle = '#1b1224';
+        ctx.beginPath();
+        ctx.moveTo(vx - w - 0.8, vy + 1);
+        ctx.lineTo(vx + 1, vy - hh - 1);
+        ctx.lineTo(vx + w + 0.8, vy + 1);
+        ctx.fill();
+        ctx.fillStyle = i % 2 ? '#a09381' : '#c9bca6';
+        ctx.beginPath();
+        ctx.moveTo(vx - w, vy);
+        ctx.lineTo(vx + 1, vy - hh);
+        ctx.lineTo(vx + w, vy);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.beginPath();
+        ctx.moveTo(vx - w * 0.3, vy - 1);
+        ctx.lineTo(vx + 1, vy - hh + 1);
+        ctx.lineTo(vx + 0.6, vy - 1);
+        ctx.fill();
+      }
+      ctx.restore();
     } else if (h.kind === 'zone' && h.burst && m.visual === 'psy') {
       const age = h.t - m.warn;
       ctx.save();
@@ -1127,6 +1223,24 @@ export function renderHazards(ctx, b, t) {
       ctx.ellipse(h.x, h.y - 6, h.r, h.r * 0.7, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
+    } else if (h.kind === 'strike' && h.hit && m.visual === 'psy') {
+      // Premonición: columna de energía psíquica
+      const k = Math.max(0, 1 - (h.t - m.warn) / 0.25);
+      ctx.save();
+      ctx.globalAlpha = k;
+      const w = h.r * 0.9;
+      const g = ctx.createLinearGradient(h.x - w, 0, h.x + w, 0);
+      g.addColorStop(0, 'rgba(249,85,135,0)');
+      g.addColorStop(0.5, 'rgba(255,208,228,0.95)');
+      g.addColorStop(1, 'rgba(249,85,135,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(h.x - w, h.y - 200, w * 2, 200);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(h.x, h.y, h.r * (1.4 - k * 0.6), h.r * 0.6 * (1.4 - k * 0.6), 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
     } else if (h.kind === 'strike' && h.hit) {
       // Rayo cayendo del cielo
       const k = 1 - (h.t - m.warn) / 0.25;
@@ -1134,10 +1248,10 @@ export function renderHazards(ctx, b, t) {
       ctx.globalAlpha = Math.max(0, k);
       ctx.lineCap = 'round';
       const pts = [];
-      let x = h.x + (Math.random() - 0.5) * 6;
+      let x = h.x + (fxRandom() - 0.5) * 6;
       for (let y = h.y - 200; y < h.y; y += 14) {
         pts.push([x, y]);
-        x += (Math.random() - 0.5) * 10;
+        x += (fxRandom() - 0.5) * 10;
       }
       pts.push([h.x, h.y]);
       for (const [w, c] of [[6, '#ffe14d'], [2.5, '#ffffff']]) {

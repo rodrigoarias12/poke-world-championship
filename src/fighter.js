@@ -1,4 +1,5 @@
 import { CREATURES, MOVES, GMAX, MAX_MOVE, GMAX_SIZE } from './data.js';
+import { fxRandom } from './rng.js';
 import { FIELD, SPRITE_SCALE, BOSS_SCALE } from './config.js';
 import { spriteOf, frameAt } from './sprites.js';
 import { TYPE_COLORS } from './effects.js';
@@ -62,7 +63,7 @@ export class Fighter {
     this.flash = 0;
     this.squash = 0;
     this.lift = 0;
-    this.animT = Math.random() * 5;
+    this.animT = fxRandom() * 5;
     this.walkT = 0;
     this.rippleT = 0;
     this.moving = false;
@@ -204,18 +205,18 @@ export class Fighter {
     this.burnT = Math.max(0, this.burnT - dt);
     this.shockT = Math.max(0, this.shockT - dt);
     this.frozenT = Math.max(0, this.frozenT - dt);
-    if (this.alive && this.burnT > 0 && Math.random() < 0.6) {
-      b.effects.trail(this.x + (Math.random() - 0.5) * this.wide * 0.6, this.y - Math.random() * this.tall * 0.8, TYPE_COLORS.fuego, { size: 2, vy: -26, life: 0.4 });
+    if (this.alive && this.burnT > 0 && fxRandom() < 0.6) {
+      b.effects.trail(this.x + (fxRandom() - 0.5) * this.wide * 0.6, this.y - fxRandom() * this.tall * 0.8, TYPE_COLORS.fuego, { size: 2, vy: -26, life: 0.4 });
     }
-    if (this.alive && this.frozenT > 0 && Math.random() < 0.25) {
-      b.effects.trail(this.x + (Math.random() - 0.5) * this.wide * 0.6, this.y - Math.random() * this.tall, TYPE_COLORS.hielo, { size: 1.4, vy: 6, life: 0.5 });
+    if (this.alive && this.frozenT > 0 && fxRandom() < 0.25) {
+      b.effects.trail(this.x + (fxRandom() - 0.5) * this.wide * 0.6, this.y - fxRandom() * this.tall, TYPE_COLORS.hielo, { size: 1.4, vy: 6, life: 0.5 });
     }
     this.enterT += dt;
     if (this.gmax > 0) {
       this.gmax = Math.max(0, this.gmax - dt);
       if (this.gmax <= 0) this.endGmax();
-      else if (this.alive && Math.random() < 0.55) {
-        b.effects.trail(this.x + (Math.random() - 0.5) * this.wide * 0.8, this.y - Math.random() * this.tall, ['#ffffff', '#ffb3c6', '#ff4d6d'], { size: 1.8, vy: -30, life: 0.6 });
+      else if (this.alive && fxRandom() < 0.55) {
+        b.effects.trail(this.x + (fxRandom() - 0.5) * this.wide * 0.8, this.y - fxRandom() * this.tall, ['#ffffff', '#ffb3c6', '#ff4d6d'], { size: 1.8, vy: -30, life: 0.6 });
       }
     }
     // Crece o se achica de a poco
@@ -259,7 +260,7 @@ export class Fighter {
       this.dashT -= dt;
       this.vx = this.dashDir[0] * this.dashSpeed;
       this.vy = this.dashDir[1] * this.dashSpeed;
-      if (this.dashSpeed > 0 && Math.random() < 0.9) b.effects.ghost(this, this.x, this.y, this.flipX, this.ds);
+      if (this.dashSpeed > 0 && fxRandom() < 0.9) b.effects.ghost(this, this.x, this.y, this.flipX, this.ds);
     } else if (this.action) {
       updateAction(this, b, dt);
     } else {
@@ -290,19 +291,23 @@ export class Fighter {
     this.rippleT -= dt;
     if (this.alive && this.lift < 5 && this.onWater && this.rippleT <= 0) {
       this.rippleT = this.moving ? 0.12 : 0.6;
-      b.effects.ring(this.x, this.y, 'rgba(220,240,255,0.7)', { r: this.r * 0.6, maxR: this.r * (this.moving ? 1.4 : 1.2), life: this.moving ? 0.5 : 0.9, width: 0.8 });
-      if (this.moving && Math.random() < 0.6) {
-        b.effects.burst(this.x - this.vx * 0.05, this.y, ['#ffffff', '#cdeeff'], { count: 2, speed: 25, size: 1.4, life: 0.35, up: 15, grav: 60 });
+      const lava = b.arena.T.floor === 'lava';
+      b.effects.ring(this.x, this.y, lava ? 'rgba(255,170,70,0.7)' : 'rgba(220,240,255,0.7)', { r: this.r * 0.6, maxR: this.r * (this.moving ? 1.4 : 1.2), life: this.moving ? 0.5 : 0.9, width: 0.8 });
+      if (this.moving && fxRandom() < 0.6) {
+        b.effects.burst(this.x - this.vx * 0.05, this.y, lava ? ['#ffd080', '#ff9a30'] : ['#ffffff', '#cdeeff'], { count: 2, speed: 25, size: 1.4, life: 0.35, up: 15, grav: 60 });
       }
     }
+
+    // En piso firme, polvito al caminar
+    if (this.alive && this.moving && b.arena.ground && this.lift < 5 && fxRandom() < 0.18) b.effects.dust(this.x, this.y, 1);
 
     if (this.alive && !(this.action && this.action.lockFacing)) {
       const dx = this.opponent.x - this.x;
       if (Math.abs(dx) > 3) this.facing = dx > 0 ? 1 : -1;
     }
 
-    if (this.boss && this.alive && Math.random() < 0.4) {
-      b.effects.trail(this.x + (Math.random() - 0.5) * this.wide, this.y - Math.random() * this.tall, TYPE_COLORS[this.type], { size: 1.8, vy: -16 });
+    if (this.boss && this.alive && fxRandom() < 0.4) {
+      b.effects.trail(this.x + (fxRandom() - 0.5) * this.wide, this.y - fxRandom() * this.tall, TYPE_COLORS[this.type], { size: 1.8, vy: -16 });
     }
   }
 
@@ -446,16 +451,16 @@ export class Fighter {
     // Electrizado: chispas alrededor del cuerpo
     if (this.shockT > 0) {
       ctx.save();
-      ctx.strokeStyle = Math.random() < 0.5 ? '#fff6a0' : '#ffe14d';
+      ctx.strokeStyle = fxRandom() < 0.5 ? '#fff6a0' : '#ffe14d';
       ctx.lineWidth = 0.9;
       for (let n = 0; n < 2; n++) {
-        let px = this.x + (Math.random() - 0.5) * this.wide;
-        let py = this.y - Math.random() * this.tall;
+        let px = this.x + (fxRandom() - 0.5) * this.wide;
+        let py = this.y - fxRandom() * this.tall;
         ctx.beginPath();
         ctx.moveTo(px, py);
         for (let k = 0; k < 4; k++) {
-          px += (Math.random() - 0.5) * 7;
-          py += (Math.random() - 0.5) * 7;
+          px += (fxRandom() - 0.5) * 7;
+          py += (fxRandom() - 0.5) * 7;
           ctx.lineTo(px, py);
         }
         ctx.stroke();
