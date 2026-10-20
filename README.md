@@ -31,6 +31,19 @@ definitivo pasa a ser su ataque Gigamax (Gigallamarada, Gigatronada…). Pikachu
 Blastoise, Venusaur, Gengar, Snorlax, Lapras y Eevee tienen forma Gigamax; los demás hacen
 Dinamax.
 
+## Modo Aventura
+
+Caminá por Kanto como en Pokémon Rojo y Azul, pero cada encuentro se pelea en tiempo real.
+Empezás en tu casa de PUEBLO PALETA, elegís tu inicial en el laboratorio del PROF. OAK,
+peleás con tu rival AZUL y salís a la RUTA 1, donde los Pokémon salvajes caminan por el
+pasto alto: tocás uno y empieza la pelea. Cuando queda **MAREADO** (estrellitas), la Poké
+Ball (tecla R o el botón) lo atrapa seguro. Los entrenadores te ven y te desafían, y en
+CIUDAD VERDE la enfermera Joy cura a tu equipo. Hay niveles, experiencia, equipo de hasta
+6 y guardado automático. Si perdés, volvés a casa con el equipo curado.
+
+Controles: flechas para caminar, ESPACIO para hablar, ESC para el menú. En el celular:
+joystick, A y B. El plan completo está en `docs/PLAN-AVENTURA.md`.
+
 ## Jugar en línea
 
 **JUGAR EN LÍNEA** te junta solo con otra persona que esté buscando, sin códigos ni

@@ -218,6 +218,18 @@ export function drawLogo(ctx, cx, cy, t, scale = 1) {
   ctx.restore();
 }
 
+// La aventura se carga recién cuando se elige (así no toca los otros modos)
+export function openAdventure(game) {
+  game.audio.play('confirm');
+  import('./adventure/title.js')
+    .then((m) => game.setScene(new m.AdventureTitleScene(game)))
+    .catch((e) => {
+      console.error(e);
+      game.audio.play('back');
+      alert?.('No se pudo abrir la aventura. Recargá la página.');
+    });
+}
+
 // --------------------------------------------------------------- Cargando
 
 export class LoadingScene {
@@ -246,6 +258,7 @@ export class LoadingScene {
       if (/^\d{4}$/.test(urlParams.get('sala') || '')) g.setScene(new OnlineScene(g, { join: urlParams.get('sala') }));
       else if (urlParams.has('crear')) g.setScene(new OnlineScene(g, { create: /^\d{4}$/.test(urlParams.get('crear')) ? urlParams.get('crear') : true }));
       else if (urlParams.has('buscar')) g.setScene(new OnlineScene(g));
+      else if (urlParams.has('aventura')) openAdventure(g);
       else g.setScene(new TitleScene(g));
     }
   }
@@ -302,12 +315,13 @@ export class TitleScene {
     this.arena = new Arena('piscina', 3);
     this.parade = ['pikachu', 'charizard', 'lapras', 'gyarados', 'eevee', 'snorlax'];
     const items = [
+      { label: 'AVENTURA', sub: '¡caminá por Kanto como en Rojo y Azul!', color: '#e8413b', action: () => openAdventure(game) },
       { label: 'JUGAR EN LÍNEA', sub: '¡contra otra persona, ya!', color: '#2e9e8f', action: () => game.setScene(new OnlineScene(game)) },
       { label: 'TORNEO', sub: '4 combates y un jefe mega', color: '#ff7a2f', action: () => game.setScene(new TeamScene(game, { mode: 'torneo' })) },
       { label: 'COMBATE', sub: 'tu equipo contra la IA', color: '#3a8fe0', action: () => game.setScene(new TeamScene(game, { mode: 'libre' })) },
       { label: 'CÓMO JUGAR', sub: 'teclas y tipos', color: '#7c4fd0', action: () => game.setScene(new HowToScene(game)) },
     ];
-    this.menu = new Menu(game, items, { x: 110, y: 94, w: 100, h: 15, gap: 4, size: 6.5 });
+    this.menu = new Menu(game, items, { x: 105, y: 91, w: 110, h: 13, gap: 2.4, size: 6 });
     game.audio.music('menu');
   }
 
@@ -840,7 +854,7 @@ export class BattleScene {
   constructor(game, cfg) {
     this.game = game;
     this.cfg = cfg;
-    this.battle = new Battle(game, { ...cfg, seed: 1 + Math.floor(Math.random() * 9999) });
+    this.battle = this.createBattle(game, { ...cfg, seed: 1 + Math.floor(Math.random() * 9999) });
     this.paused = false;
     this.result = null;
     this.resultT = 0;
@@ -860,6 +874,11 @@ export class BattleScene {
       { label: 'SALIR AL MENÚ', color: '#7c4fd0', action: () => this.exit() },
     ], { x: 110, y: 40, w: 100, h: 12, gap: 2, size: 5 });
     this.syncPauseLabels();
+  }
+
+  // Gancho para modos que usan su propia pelea (por ejemplo, la aventura)
+  createBattle(game, cfg) {
+    return new Battle(game, cfg);
   }
 
   syncPauseLabels() {

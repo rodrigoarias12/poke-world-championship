@@ -518,3 +518,8 @@ export function vignette(ctx) {
 export function arenaName(key) {
   return THEMES[key]?.name || '';
 }
+
+// Para modos que traen sus propias canchas (por ejemplo, la aventura)
+export function registerArenaTheme(key, theme) {
+  THEMES[key] = theme;
+}
