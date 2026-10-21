@@ -1,6 +1,6 @@
 import { CREATURES, MOVES, GMAX, MAX_MOVE, GMAX_SIZE } from './data.js';
 import { fxRandom } from './rng.js';
-import { FIELD, SPRITE_SCALE, BOSS_SCALE } from './config.js';
+import { SPRITE_SCALE, BOSS_SCALE } from './config.js';
 import { spriteOf, frameAt } from './sprites.js';
 import { TYPE_COLORS } from './effects.js';
 import { startMove, updateAction, glow } from './moves.js';
@@ -82,8 +82,9 @@ export class Fighter {
     this.intent = { mx: 0, my: 0, use: -1, aimX: 1, aimY: 0 };
   }
 
+  // A quién apunta y persigue (de a dos, el otro; en la batalla campal, el más cercano)
   get opponent() {
-    return this.battle.fighters[1 - this.side];
+    return this.battle.targetFor(this);
   }
 
   // ¿Lo maneja la IA? (apunta y embiste distinto que un jugador)
@@ -278,9 +279,7 @@ export class Fighter {
     const oy = this.y;
     this.x += (this.vx + this.kx) * dt;
     this.y += (this.vy + this.ky) * dt;
-    this.x = clamp(this.x, FIELD.x0 + this.r * 0.6, FIELD.x1 - this.r * 0.6);
-    // Un gigante no puede pararse tan arriba (si no, la cabeza queda fuera de la pantalla)
-    this.y = clamp(this.y, this.gs > 1 ? Math.min(FIELD.y1 - 10, Math.max(FIELD.y0, this.tall + 14)) : FIELD.y0, FIELD.y1);
+    b.confine(this, ox, oy);
 
     const moved = Math.hypot(this.x - ox, this.y - oy) / Math.max(dt, 1e-4);
     this.moving = moved > 10;
@@ -379,13 +378,12 @@ export class Fighter {
     ctx.fill();
     // Aro de color en los pies: naranja el tuyo, azul el rival (como en la pantalla VS)
     if (this.alive && this.invisible <= 0) {
-      const mine = this.side === b.localSide;
       const rx = this.r * 1.25 * sh;
       const ry = this.r * 0.5 * sh;
       ctx.save();
       ctx.globalAlpha = alpha * 0.85;
       ctx.lineWidth = 1;
-      ctx.strokeStyle = mine ? '#ffb43b' : '#5ab4ff';
+      ctx.strokeStyle = b.ringColor(this);
       ctx.beginPath();
       ctx.ellipse(this.x, this.y + 1, rx, ry, 0, 0, Math.PI * 2);
       ctx.stroke();

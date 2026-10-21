@@ -219,6 +219,17 @@ export function drawLogo(ctx, cx, cy, t, scale = 1) {
 }
 
 // La aventura se carga recién cuando se elige (así no toca los otros modos)
+// La batalla campal también se carga recién cuando se usa
+export function openRoyale(game, key, opts = {}) {
+  import('./royale/scenes.js')
+    .then((m) => game.setScene(new m.RoyaleSetupScene(game, { key, ...opts })))
+    .catch((e) => {
+      console.error(e);
+      game.audio.play('back');
+      alert?.('No se pudo abrir la batalla campal. Recargá la página.');
+    });
+}
+
 export function openAdventure(game) {
   game.audio.play('confirm');
   import('./adventure/title.js')
@@ -259,6 +270,7 @@ export class LoadingScene {
       else if (urlParams.has('crear')) g.setScene(new OnlineScene(g, { create: /^\d{4}$/.test(urlParams.get('crear')) ? urlParams.get('crear') : true }));
       else if (urlParams.has('buscar')) g.setScene(new OnlineScene(g));
       else if (urlParams.has('aventura')) openAdventure(g);
+      else if (urlParams.has('campal')) g.setScene(new TeamScene(g, { mode: 'campal' }));
       else g.setScene(new TitleScene(g));
     }
   }
@@ -316,12 +328,13 @@ export class TitleScene {
     this.parade = ['pikachu', 'charizard', 'lapras', 'gyarados', 'eevee', 'snorlax'];
     const items = [
       { label: 'AVENTURA', sub: '¡caminá por Kanto como en Rojo y Azul!', color: '#e8413b', action: () => openAdventure(game) },
+      { label: 'BATALLA CAMPAL', sub: '¡5 Pokémon, un pueblo, gana el último!', color: '#c2408f', action: () => game.setScene(new TeamScene(game, { mode: 'campal' })) },
       { label: 'JUGAR EN LÍNEA', sub: '¡contra otra persona, ya!', color: '#2e9e8f', action: () => game.setScene(new OnlineScene(game)) },
       { label: 'TORNEO', sub: '4 combates y un jefe mega', color: '#ff7a2f', action: () => game.setScene(new TeamScene(game, { mode: 'torneo' })) },
       { label: 'COMBATE', sub: 'tu equipo contra la IA', color: '#3a8fe0', action: () => game.setScene(new TeamScene(game, { mode: 'libre' })) },
       { label: 'CÓMO JUGAR', sub: 'teclas y tipos', color: '#7c4fd0', action: () => game.setScene(new HowToScene(game)) },
     ];
-    this.menu = new Menu(game, items, { x: 105, y: 91, w: 110, h: 13, gap: 2.4, size: 6 });
+    this.menu = new Menu(game, items, { x: 105, y: 89.5, w: 110, h: 11.6, gap: 1.4, size: 5.6 });
     game.audio.music('menu');
   }
 
@@ -383,7 +396,9 @@ export class TeamScene {
   constructor(game, { mode, team = [] }) {
     this.game = game;
     this.mode = mode;
-    this.team = [...team];
+    // En la batalla campal se elige un solo Pokémon
+    this.size = mode === 'campal' ? 1 : 3;
+    this.team = [...team].slice(0, this.size);
     this.index = 0;
     this.t = 0;
     this.cards = [];
@@ -402,8 +417,11 @@ export class TeamScene {
     if (i >= 0) {
       this.team.splice(i, 1);
       this.game.audio.play('back');
-    } else if (this.team.length < 3) {
+    } else if (this.team.length < this.size) {
       this.team.push(key);
+      this.game.audio.cry(CREATURES[key].id);
+    } else if (this.size === 1) {
+      this.team = [key];
       this.game.audio.cry(CREATURES[key].id);
     } else {
       this.game.audio.play('back');
@@ -411,15 +429,16 @@ export class TeamScene {
   }
 
   random() {
-    this.team = pick3();
+    this.team = pick3().slice(0, this.size);
     this.game.audio.play('confirm');
     this.game.audio.cry(CREATURES[this.team[0]].id, { vol: 0.35 });
   }
 
   done() {
-    if (this.team.length < 3) return;
+    if (this.team.length < this.size) return;
     const g = this.game;
     g.audio.play('confirm');
+    if (this.mode === 'campal') return openRoyale(g, this.team[0]);
     saveTeam(this.team);
     if (this.mode === 'online') {
       g.setScene(new OnlineScene(g, { team: this.team }));
@@ -460,7 +479,8 @@ export class TeamScene {
     if (['right', 'left', 'up', 'down'].some((k) => inp.wasPressed(k))) this.game.audio.play('select');
     if (inp.wasPressed('confirm')) {
       // Con el equipo completo, ENTER sobre otro Pokémon empieza
-      if (this.team.length === 3 && !this.team.includes(this.selected)) this.done();
+      if (this.size === 1 && this.team[0] === this.selected) this.done();
+      else if (this.team.length === this.size && !this.team.includes(this.selected) && this.size > 1) this.done();
       else this.toggle(this.selected);
     }
     if (inp.wasPressed('m4')) this.done();
@@ -485,7 +505,7 @@ export class TeamScene {
     const t = this.t;
     this.arena.drawWater(ctx, t);
     dim(ctx, 0.72);
-    title(ctx, this.mode === 'torneo' ? 'ARMA TU EQUIPO · TORNEO' : this.mode === 'online' ? 'TU EQUIPO PARA JUGAR EN LÍNEA' : 'ARMA TU EQUIPO');
+    title(ctx, this.mode === 'torneo' ? 'ARMA TU EQUIPO · TORNEO' : this.mode === 'online' ? 'TU EQUIPO PARA JUGAR EN LÍNEA' : this.mode === 'campal' ? 'ELEGÍ TU POKÉMON · BATALLA CAMPAL' : 'ARMA TU EQUIPO');
 
     // Grilla de todos los Pokémon (10 por fila)
     const cw = 29.4;
@@ -566,9 +586,9 @@ export class TeamScene {
 
     // Equipo
     panel(ctx, 212, py, 98, 77, { fill: 'rgba(30,24,50,0.94)', r: 4 });
-    text(ctx, 'TU EQUIPO', 261, py + 9, { size: 4.6, weight: 900, align: 'center', color: '#ffe66b' });
-    this.slotRects = [0, 1, 2].map((i) => {
-      const sx = 228 + i * 33;
+    text(ctx, this.size === 1 ? 'TU POKÉMON' : 'TU EQUIPO', 261, py + 9, { size: 4.6, weight: 900, align: 'center', color: '#ffe66b' });
+    this.slotRects = [...Array(this.size).keys()].map((i) => {
+      const sx = this.size === 1 ? 261 : 228 + i * 33;
       const sy = py + 26;
       ctx.beginPath();
       ctx.arc(sx, sy, 13, 0, Math.PI * 2);
@@ -582,10 +602,13 @@ export class TeamScene {
       return { x: sx - 13, y: sy - 13, w: 26, h: 26 };
     });
     this.randRect = button(ctx, 'AL AZAR', 218, py + 44, 86, 12, { color: '#7c4fd0', size: 4.6 });
-    const ready = this.team.length === 3;
-    this.okRect = button(ctx, ready ? '¡LISTO!' : `ELIGE ${3 - this.team.length} MÁS`, 218, py + 60, 86, 13, { color: ready ? '#ff7a2f' : '#4a4458', size: 5, selected: ready, disabled: !ready });
+    const ready = this.team.length === this.size;
+    const missing = this.size - this.team.length;
+    this.okRect = button(ctx, ready ? '¡LISTO!' : this.size === 1 ? 'ELIGE UNO' : `ELIGE ${missing} MÁS`, 218, py + 60, 86, 13, { color: ready ? '#ff7a2f' : '#4a4458', size: 5, selected: ready, disabled: !ready });
     if (!ready) this.okRect = null;
-    const hint = this.game.input.touchMode ? 'Toca dos veces para sumar al equipo' : 'Flechas: elegir · ENTER: sumar/quitar · E: ¡listo!';
+    const hint = this.size === 1
+      ? (this.game.input.touchMode ? 'Toca dos veces para elegirlo' : 'Flechas: elegir · ENTER: elegir · E: ¡listo!')
+      : this.game.input.touchMode ? 'Toca dos veces para sumar al equipo' : 'Flechas: elegir · ENTER: sumar/quitar · E: ¡listo!';
     text(ctx, hint, VW / 2, 95.5, { size: 3.2, weight: 700, align: 'center', color: 'rgba(255,255,255,0.65)' });
     this.backRect = backButton(ctx);
   }

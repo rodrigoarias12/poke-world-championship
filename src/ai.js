@@ -1,5 +1,4 @@
 import { DIFFICULTY } from './data.js';
-import { FIELD } from './config.js';
 import { moveRange } from './moves.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -105,11 +104,7 @@ export class AI {
     let my = uy * radial + py * this.strafe * 0.7;
 
     // Alejarse de los bordes
-    const m = 26;
-    if (f.x < FIELD.x0 + m) mx += ((FIELD.x0 + m - f.x) / m) * 1.5;
-    if (f.x > FIELD.x1 - m) mx -= ((f.x - (FIELD.x1 - m)) / m) * 1.5;
-    if (f.y < FIELD.y0 + m * 0.6) my += 1.2;
-    if (f.y > FIELD.y1 - m * 0.6) my -= 1.2;
+    [mx, my] = b.avoidEdges(f, mx, my);
     // Salir de zonas peligrosas
     for (const h of b.hazards) {
       if (h.owner === f || h.kind !== 'zone') continue;
@@ -160,14 +155,15 @@ export class AI {
 
   // Esquiva lateral (o vuela) alejándose de los bordes
   dodge(vx, vy) {
-    const { f } = this;
+    const { f, b } = this;
     const sp = f.moves[2];
     if (f.cds[2] > 0 || this.dodgeLock > 0 || sp.kind === 'rest') return;
     const len = Math.hypot(vx, vy) || 1;
     let px = -vy / len;
     let py = vx / len;
-    const cx = (FIELD.x0 + FIELD.x1) / 2 - f.x;
-    const cy = (FIELD.y0 + FIELD.y1) / 2 - f.y;
+    const [ccx, ccy] = b.centerFor(f);
+    const cx = ccx - f.x;
+    const cy = ccy - f.y;
     if (px * cx + py * cy < 0) {
       px = -px;
       py = -py;

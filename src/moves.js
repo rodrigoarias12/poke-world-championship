@@ -1,6 +1,6 @@
 import { TYPE_COLORS } from './effects.js';
 import { fxRandom } from './rng.js';
-import { FIELD, VW } from './config.js';
+import { VW } from './config.js';
 import { boulderSprite } from './art.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -182,8 +182,7 @@ export function startMove(f, b, m) {
       }
       const len = Math.hypot(mx, my) || 1;
       b.effects.burst(f.x, f.y - f.tall / 2, TYPE_COLORS.psiquico, { count: 16, speed: 50, size: 1.8, life: 0.4 });
-      f.x = clamp(f.x + (mx / len) * m.dist, FIELD.x0 + f.r, FIELD.x1 - f.r);
-      f.y = clamp(f.y + (my / len) * m.dist, FIELD.y0, FIELD.y1);
+      [f.x, f.y] = b.clampSpot(f, f.x + (mx / len) * m.dist, f.y + (my / len) * m.dist);
       f.iframes = 0.2;
       b.effects.burst(f.x, f.y - f.tall / 2, TYPE_COLORS.psiquico, { count: 16, speed: 50, size: 1.8, life: 0.4 });
       b.audio.play('orb');
@@ -209,7 +208,7 @@ function turnToward(a, target, rate, dt) {
   return a + clamp(wrapAngle(target - a), -rate * dt, rate * dt);
 }
 
-function rayLength(x, ang, max) {
+export function rayLength(x, ang, max) {
   const cx = Math.cos(ang);
   let d = max;
   if (cx > 0.01) d = Math.min(d, (VW + 10 - x) / cx);
@@ -247,9 +246,11 @@ export function updateAction(f, b, dt) {
         const hy = f.y + a.dir[1] * (f.r + m.range * 0.5);
         if (m.bite) biteFx(b, hx, hy - f.tall * 0.4, colors);
         else slashFx(b, hx, hy - f.tall * 0.4, colors, a.dir);
-        const d = Math.hypot(opp.x - f.x, opp.y - f.y);
-        if (opp.alive && d < f.r + opp.r + m.range) {
-          b.damage(f, opp, m.dmg, { m, kb: m.kb, dirX: a.dir[0], dirY: a.dir[1], stun: m.stun });
+        for (const o of b.enemiesOf(f)) {
+          const d = Math.hypot(o.x - f.x, o.y - f.y);
+          if (o.alive && d < f.r + o.r + m.range) {
+            b.damage(f, o, m.dmg, { m, kb: m.kb, dirX: a.dir[0], dirY: a.dir[1], stun: m.stun });
+          }
         }
       }
       if (a.t >= 0.22) f.action = null;
@@ -272,7 +273,7 @@ export function updateAction(f, b, dt) {
           }
           a.phase = 'go';
           a.pt = m.time;
-          a.hit = false;
+          b.clearHits(a);
           b.audio.play(m.fx === 'electrico' ? 'zap' : 'dash');
         }
       } else {
@@ -280,16 +281,17 @@ export function updateAction(f, b, dt) {
         f.vy = a.dir[1] * m.speed;
         const nx = f.x + f.vx * dt;
         const ny = f.y + f.vy * dt;
-        if (nx < FIELD.x0 + f.r || nx > FIELD.x1 - f.r) a.dir[0] *= -1;
-        if (ny < FIELD.y0 || ny > FIELD.y1) a.dir[1] *= -1;
+        b.dashBounce(f, a, nx, ny);
         a.pt -= dt;
         b.effects.trail(f.x, f.y - f.tall * 0.4, colors, { size: 2, jitter: f.r * 0.6, vy: 0 });
-        if (!a.hit && opp.alive && opp.lift < 20 && Math.hypot(opp.x - f.x, opp.y - f.y) < f.r + opp.r + 2) {
-          a.hit = true;
-          if (b.damage(f, opp, m.dmg, { m, kb: m.kb, dirX: a.dir[0], dirY: a.dir[1], stun: m.stun })) {
-            b.effects.ring(opp.x, opp.y - opp.tall / 2, colors[1], { maxR: 16, life: 0.25, width: 1.6 });
+        for (const o of b.enemiesOf(f)) {
+          if (!b.hitBefore(a, o) && o.alive && o.lift < 20 && Math.hypot(o.x - f.x, o.y - f.y) < f.r + o.r + 2) {
+            b.markHit(a, o);
+            if (b.damage(f, o, m.dmg, { m, kb: m.kb, dirX: a.dir[0], dirY: a.dir[1], stun: m.stun })) {
+              b.effects.ring(o.x, o.y - o.tall / 2, colors[1], { maxR: 16, life: 0.25, width: 1.6 });
+            }
+            if ((m.hits || 1) === 1) a.pt = Math.min(a.pt, 0.04);
           }
-          if ((m.hits || 1) === 1) a.pt = Math.min(a.pt, 0.04);
         }
         if (a.pt <= 0) {
           a.n++;
@@ -337,15 +339,17 @@ export function updateAction(f, b, dt) {
       const cy = Math.sin(a.angle);
       const sx = f.x + cx * f.r;
       const sy = f.y + cy * f.r * 0.6;
-      a.len = isBeam ? rayLength(sx, a.angle, 400) : m.len;
+      a.len = isBeam ? b.rayLength(sx, sy, a.angle, 400) : m.len;
       const ex = sx + cx * a.len;
       const ey = sy + cy * a.len;
       a.tick -= dt;
       if (a.tick <= 0) {
         a.tick = 0.1;
         const w = (m.width * (f.boss ? 1.3 : 1)) / 2;
-        if (opp.alive && opp.lift < 20 && distToSegment(opp.x, opp.y, sx, sy, ex, ey) < w + opp.r) {
-          b.damage(f, opp, m.tick, { m, kb: isBeam ? 40 : 20, dirX: cx, dirY: cy, noCrit: true, hitstop: 0, tick: true, slow: m.slow });
+        for (const o of b.enemiesOf(f)) {
+          if (o.alive && o.lift < 20 && distToSegment(o.x, o.y, sx, sy, ex, ey) < w + o.r) {
+            b.damage(f, o, m.tick, { m, kb: isBeam ? 40 : 20, dirX: cx, dirY: cy, noCrit: true, hitstop: 0, tick: true, slow: m.slow });
+          }
         }
         if (m.freeze) {
           for (let d = 10; d < a.len; d += 18) {
@@ -458,9 +462,11 @@ export function updateAction(f, b, dt) {
           b.splash(f.x, f.y, 14);
           b.effects.ring(f.x, f.y, colors[1], { maxR: m.r, life: 0.3, width: 2 });
           b.audio.play('bighit');
-          const d = Math.hypot(opp.x - f.x, opp.y - f.y) || 1;
-          if (opp.alive && d < m.r + opp.r) {
-            b.damage(f, opp, m.dmg, { m, kb: 200, dirX: (opp.x - f.x) / d, dirY: (opp.y - f.y) / d, stun: 0.3 });
+          for (const o of b.enemiesOf(f)) {
+            const d = Math.hypot(o.x - f.x, o.y - f.y) || 1;
+            if (o.alive && d < m.r + o.r) {
+              b.damage(f, o, m.dmg, { m, kb: 200, dirX: (o.x - f.x) / d, dirY: (o.y - f.y) / d, stun: 0.3 });
+            }
           }
         }
       }
@@ -475,10 +481,9 @@ export function updateAction(f, b, dt) {
         const wait = a.phase === 'vanish' ? 0.38 : 0.12;
         if (a.t >= wait) {
           let tx = opp.x - opp.facing * (14 + opp.r + f.r);
-          if (tx < FIELD.x0 + f.r || tx > FIELD.x1 - f.r) tx = opp.x + opp.facing * (14 + opp.r + f.r);
+          if (!b.spotFree(f, tx, opp.y)) tx = opp.x + opp.facing * (14 + opp.r + f.r);
           b.effects.burst(f.x, f.y - f.tall / 2, colors, { count: 14, speed: 50, size: 1.8, life: 0.4 });
-          f.x = clamp(tx, FIELD.x0 + f.r, FIELD.x1 - f.r);
-          f.y = clamp(opp.y, FIELD.y0, FIELD.y1);
+          [f.x, f.y] = b.clampSpot(f, tx, opp.y);
           f.invisible = 0;
           f.iframes = 0.2;
           a.phase = 'strike';
@@ -546,7 +551,6 @@ export function killProjectile(b, p) {
 }
 
 function explodeProjectile(b, p) {
-  const opp = p.owner.opponent;
   const colors = TYPE_COLORS[p.fx] || TYPE_COLORS.fuego;
   const big = p.explode > 20;
   b.effects.burst(p.x, p.y - p.h, colors, { count: big ? 40 : 20, speed: big ? 130 : 80, size: big ? 3 : 2.2, life: 0.6 });
@@ -555,15 +559,19 @@ function explodeProjectile(b, p) {
   b.mark(p.x, p.y, p.fx, p.explode * 0.6);
   b.audio.play('explode');
   b.shake(big ? 6 : 2);
-  if (!p.directHit && opp.alive && opp.lift < 20 && Math.hypot(opp.x - p.x, opp.y - p.y) < p.explode + opp.r * 0.5) {
-    const d = Math.hypot(opp.x - p.x, opp.y - p.y) || 1;
-    b.damage(p.owner, opp, Math.round(p.dmg * 0.5), { m: p.move, kb: 80, dirX: (opp.x - p.x) / d, dirY: (opp.y - p.y) / d, noCrit: true });
+  // A quien le pegó de lleno no le vuelve a pegar la explosión
+  for (const o of b.enemiesOf(p.owner)) {
+    if (p.directHit !== o && o.alive && o.lift < 20 && Math.hypot(o.x - p.x, o.y - p.y) < p.explode + o.r * 0.5) {
+      const d = Math.hypot(o.x - p.x, o.y - p.y) || 1;
+      b.damage(p.owner, o, Math.round(p.dmg * 0.5), { m: p.move, kb: 80, dirX: (o.x - p.x) / d, dirY: (o.y - p.y) / d, noCrit: true });
+    }
   }
 }
 
 export function updateProjectiles(b, dt) {
   for (const p of b.projectiles) {
     if (p.dead) continue;
+    b.focus(p);
     p.age += dt;
     p.life -= dt;
     p.spin += dt * 10;
@@ -584,26 +592,22 @@ export function updateProjectiles(b, dt) {
       continue;
     }
     // Bordes: rebota (burbuja) o desaparece
-    if (p.bounces > 0 && (p.x < FIELD.x0 || p.x > FIELD.x1 || p.y < FIELD.y0 - 6 || p.y > FIELD.y1)) {
-      if (p.x < FIELD.x0 || p.x > FIELD.x1) p.vx *= -1;
-      if (p.y < FIELD.y0 - 6 || p.y > FIELD.y1) p.vy *= -1;
-      p.x = clamp(p.x, FIELD.x0, FIELD.x1);
-      p.y = clamp(p.y, FIELD.y0 - 6, FIELD.y1);
-      p.bounces--;
-    } else if (p.x < -10 || p.x > VW + 10 || p.y < FIELD.y0 - 24 || p.y > FIELD.y1 + 8) {
+    if (b.projectileOut(p)) {
       p.dead = true;
       continue;
     }
-    // Rival
-    if (opp.alive && !p.passed && opp.lift < 20 && Math.hypot(opp.x - p.x, opp.y - p.y) < p.r + opp.r) {
-      const sp = Math.hypot(p.vx, p.vy) || 1;
-      const hit = b.damage(p.owner, opp, p.dmg, { m: p.move, kb: p.kb, dirX: p.vx / sp, dirY: p.vy / sp, stun: p.stun });
-      if (hit) {
-        p.directHit = true;
-        killProjectile(b, p);
-        b.effects.ring(opp.x, opp.y - opp.tall / 2, '#ffffff', { maxR: 10, life: 0.2 });
-      } else {
-        p.passed = true;
+    // Rivales (si esquivan, el proyectil los atraviesa)
+    for (const o of b.enemiesOf(p.owner)) {
+      if (o.alive && !b.hitBefore(p, o, 'passed') && o.lift < 20 && Math.hypot(o.x - p.x, o.y - p.y) < p.r + o.r) {
+        const sp = Math.hypot(p.vx, p.vy) || 1;
+        const hit = b.damage(p.owner, o, p.dmg, { m: p.move, kb: p.kb, dirX: p.vx / sp, dirY: p.vy / sp, stun: p.stun });
+        if (hit) {
+          p.directHit = o;
+          killProjectile(b, p);
+          b.effects.ring(o.x, o.y - o.tall / 2, '#ffffff', { maxR: 10, life: 0.2 });
+          break;
+        }
+        b.markHit(p, o, 'passed');
       }
     }
   }
@@ -946,8 +950,8 @@ export function renderProjectiles(ctx, b, t) {
 
 export function updateHazards(b, dt) {
   for (const h of b.hazards) {
-    const target = h.owner.opponent;
     const m = h.m;
+    b.focus(h);
     if (h.kind === 'ring' || h.kind === 'quake') {
       h.r += h.speed * dt;
       for (let i = 0; i < 4; i++) {
@@ -960,20 +964,23 @@ export function updateHazards(b, dt) {
           b.effects.add({ x: px, y: py - 2, vx: (fxRandom() - 0.5) * 20, vy: -18, life: 0.7, max: 0.7, size: 2.4, color: h.colors[1 + (i % 3)], grav: 20, drag: 2, shape: 'petal', rot: fxRandom() * 6, spin: 8 });
         } else b.effects.trail(px, py - 2, h.colors, { size: 2, jitter: 1, vy: -14 });
       }
-      if (!h.hit && target.alive && target.lift < 20) {
-        const dx = target.x - h.x;
-        const dy = (target.y - h.y) / 0.6;
-        const d = Math.hypot(dx, dy);
-        if (Math.abs(d - h.r) < h.width / 2 + target.r * 0.6) {
-          h.hit = true;
-          const nd = d || 1;
-          b.damage(h.owner, target, h.dmg, { m, kb: h.kb, dirX: dx / nd, dirY: (target.y - h.y) / nd, stun: h.stun, sleep: h.sleep });
+      for (const o of b.enemiesOf(h.owner)) {
+        if (!b.hitBefore(h, o) && o.alive && o.lift < 20) {
+          const dx = o.x - h.x;
+          const dy = (o.y - h.y) / 0.6;
+          const d = Math.hypot(dx, dy);
+          if (Math.abs(d - h.r) < h.width / 2 + o.r * 0.6) {
+            b.markHit(h, o);
+            const nd = d || 1;
+            b.damage(h.owner, o, h.dmg, { m, kb: h.kb, dirX: dx / nd, dirY: (o.y - h.y) / nd, stun: h.stun, sleep: h.sleep });
+          }
         }
       }
       if (h.r >= h.maxR) h.done = true;
     } else if (h.kind === 'zone') {
       h.t += dt;
-      const inside = target.alive && target.lift < 20 && Math.hypot(target.x - h.x, (target.y - h.y) / 0.6) < h.r + target.r * 0.3;
+      const enemies = b.enemiesOf(h.owner);
+      const inside = enemies.map((o) => o.alive && o.lift < 20 && Math.hypot(o.x - h.x, (o.y - h.y) / 0.6) < h.r + o.r * 0.3);
       if (!h.burst && h.t >= m.warn) {
         h.burst = true;
         b.shake(m.visual === 'psy' ? 6 : 3);
@@ -983,22 +990,27 @@ export function updateHazards(b, dt) {
         if (m.visual === 'psy') b.effects.ring(h.x, h.y, colors[1], { maxR: h.r * 1.4, life: 0.4, width: 3 });
         if (m.visual === 'spikes') b.effects.typeHit(h.x, h.y - 4, 'roca', 20);
         b.mark(h.x, h.y, m.visual === 'spikes' ? 'roca' : m.fx, h.r * 0.8);
-        if (inside) b.damage(h.owner, target, m.burst, { m, kb: m.visual === 'psy' ? 120 : 0, dirX: 0, dirY: -1, root: m.root, stun: m.stun });
+        enemies.forEach((o, i) => {
+          if (inside[i]) b.damage(h.owner, o, m.burst, { m, kb: m.visual === 'psy' ? 120 : 0, dirX: 0, dirY: -1, root: m.root, stun: m.stun });
+        });
       }
       if (h.burst) {
-        if (m.pull && target.alive && target.lift < 20) {
-          const dx = h.x - target.x;
-          const dy = h.y - target.y;
+        for (const o of enemies) {
+          if (!m.pull || !o.alive || o.lift >= 20) continue;
+          const dx = h.x - o.x;
+          const dy = h.y - o.y;
           const d = Math.hypot(dx, dy);
           if (d < h.r * 2 && d > 2) {
-            target.kx += (dx / d) * m.pull * dt * 4;
-            target.ky += (dy / d) * m.pull * dt * 4;
+            o.kx += (dx / d) * m.pull * dt * 4;
+            o.ky += (dy / d) * m.pull * dt * 4;
           }
         }
         h.tick -= dt;
         if (h.tick <= 0) {
           h.tick = 0.25;
-          if (inside && m.tick) b.damage(h.owner, target, m.tick, { m, kb: 0, noCrit: true, hitstop: 0, tick: true, slow: m.slow ? 0.35 : 0 });
+          enemies.forEach((o, i) => {
+            if (inside[i] && m.tick) b.damage(h.owner, o, m.tick, { m, kb: 0, noCrit: true, hitstop: 0, tick: true, slow: m.slow ? 0.35 : 0 });
+          });
         }
         if (fxRandom() < 0.5) {
           const colors = pal(m);
@@ -1019,8 +1031,10 @@ export function updateHazards(b, dt) {
         if (psy) b.effects.ring(h.x, h.y, '#ff8fbf', { maxR: h.r * 1.6, life: 0.4, width: 2.5 });
         b.mark(h.x, h.y, m.fx, h.r * 0.9);
         b.splash(h.x, h.y, 10);
-        if (target.alive && target.lift < 20 && Math.hypot(target.x - h.x, (target.y - h.y) / 0.6) < h.r + target.r * 0.5) {
-          b.damage(h.owner, target, m.dmg, { m, kb: 60, dirX: 0, dirY: 1, stun: m.stun });
+        for (const o of b.enemiesOf(h.owner)) {
+          if (o.alive && o.lift < 20 && Math.hypot(o.x - h.x, (o.y - h.y) / 0.6) < h.r + o.r * 0.5) {
+            b.damage(h.owner, o, m.dmg, { m, kb: 60, dirX: 0, dirY: 1, stun: m.stun });
+          }
         }
       }
       if (h.t >= m.warn + 0.25) h.done = true;
@@ -1029,13 +1043,15 @@ export function updateHazards(b, dt) {
       h.x += h.dx * m.speed * dt;
       h.y += h.dy * m.speed * dt;
       const half = m.width / 2;
-      const rx = target.x - h.x;
-      const ry = target.y - h.y;
-      const along = rx * h.dx + ry * h.dy;
-      const across = -rx * h.dy + ry * h.dx;
-      if (!h.hit && target.alive && target.lift < 20 && Math.abs(along) < 10 + target.r && Math.abs(across) < half) {
-        h.hit = true;
-        b.damage(h.owner, target, m.dmg, { m, kb: m.kb, dirX: h.dx, dirY: h.dy, stun: 0.2 });
+      for (const o of b.enemiesOf(h.owner)) {
+        const rx = o.x - h.x;
+        const ry = o.y - h.y;
+        const along = rx * h.dx + ry * h.dy;
+        const across = -rx * h.dy + ry * h.dx;
+        if (!b.hitBefore(h, o) && o.alive && o.lift < 20 && Math.abs(along) < 10 + o.r && Math.abs(across) < half) {
+          b.markHit(h, o);
+          b.damage(h.owner, o, m.dmg, { m, kb: m.kb, dirX: h.dx, dirY: h.dy, stun: 0.2 });
+        }
       }
       for (const p of b.projectiles) {
         if (p.owner !== h.owner && !p.dead) {
@@ -1048,7 +1064,7 @@ export function updateHazards(b, dt) {
         const k = (fxRandom() - 0.5) * m.width;
         b.effects.burst(h.x - h.dy * k, h.y + h.dx * k - 6, ['#ffffff', '#e6faff', '#8fd3ff'], { count: 1, speed: 30, size: 2, life: 0.5, up: 30, grav: 120 });
       }
-      if (h.t > 3 || h.x < -80 || h.x > VW + 80 || h.y < -80 || h.y > 260) h.done = true;
+      if (b.waveOut(h)) h.done = true;
     }
   }
   b.hazards = b.hazards.filter((h) => !h.done);

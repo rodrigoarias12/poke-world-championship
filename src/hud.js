@@ -11,7 +11,7 @@ function hpColors(f) {
 }
 
 // Barra de vida redondeada, con degradé, brillo, marcas y el daño reciente en blanco
-function hpBar(ctx, x, y, w, h, f, rtl, t) {
+export function hpBar(ctx, x, y, w, h, f, rtl, t) {
   const frac = Math.max(0, Math.min(1, f.hp / f.maxHp));
   const ghost = Math.max(0, Math.min(1, f.ghostHp / f.maxHp));
   roundRect(ctx, x - 1, y - 1, w + 2, h + 2, (h + 2) / 2);
@@ -212,7 +212,7 @@ export function renderHUD(ctx, b, t) {
 }
 
 // Barra de ataques del jugador (abajo a la izquierda)
-function renderHotbar(ctx, b, t) {
+export function renderHotbar(ctx, b, t) {
   const f = b.player;
   if (!f) return;
   const w = 36;

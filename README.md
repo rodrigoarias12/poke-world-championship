@@ -1,11 +1,12 @@
 # Poké World Championship
 
 Juego de combates Pokémon para el navegador: arma un equipo de 3 entre 28 Pokémon, elige
-la cancha y la dificultad y pelea en tiempo real. Hay 11 canchas: tres arenas acuáticas y
-los 8 gimnasios de Kanto (Brock, Misty, Lt. Surge, Erika, Koga, Sabrina, Blaine y Giovanni).
-El torneo pasa por tres gimnasios, cada líder con su Pokémon estrella, y termina con un
-jefe Mega. Nació para jugar en familia, inspirado en los videos de
-"Pokémon Arena" de Big Kid Nation.
+la cancha y la dificultad y pelea en tiempo real. También hay un Modo Aventura (caminar por
+Kanto) y una Batalla Campal (cinco Pokémon en un pueblo, gana el último). Hay 11 canchas:
+tres arenas acuáticas y los 8 gimnasios de Kanto (Brock, Misty, Lt. Surge, Erika, Koga,
+Sabrina, Blaine y Giovanni). El torneo pasa por tres gimnasios, cada líder con su Pokémon
+estrella, y termina con un jefe Mega. Nació para jugar en familia, inspirado en los videos
+de "Pokémon Arena" de Big Kid Nation.
 
 **Jugar:** https://pokechampions.vercel.app
 
@@ -43,6 +44,19 @@ CIUDAD VERDE la enfermera Joy cura a tu equipo. Hay niveles, experiencia, equipo
 
 Controles: flechas para caminar, ESPACIO para hablar, ESC para el menú. En el celular:
 joystick, A y B. El plan completo está en `docs/PLAN-AVENTURA.md`.
+
+## Batalla Campal
+
+Como un battle royale: cinco Pokémon (vos y hasta 4 bots) en un PUEBLO PALETA grande, todos
+contra todos, y gana el último en pie. La **NIEBLA MORADA** de Gengar achica el pueblo de a
+poco (en las primeras fases no elimina a nadie; te deja con un poquito de vida). Por el mapa
+aparecen premios: **Baya Aranja** (cura), **Caramelo Raro** (más fuerza) y **Deportivas** (más
+rapidez). En el pasto alto no te ven de lejos. Los ataques apuntan solos al rival más cercano
+que tengas en pantalla, y los árboles y las casas frenan los disparos.
+
+Los bots tienen tres niveles y nunca atacan de a dos a la misma persona. Si quedás afuera
+podés **MIRAR** el resto de la partida. Por ahora es contra bots en un solo dispositivo; el
+plan (incluida la versión en línea para varios celulares) está en `docs/PLAN-CAMPAL.md`.
 
 ## Jugar en línea
 

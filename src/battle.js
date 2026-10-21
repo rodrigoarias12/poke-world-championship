@@ -5,19 +5,21 @@ import { Arena, vignette } from './arena.js';
 import { Effects, TYPE_COLORS } from './effects.js';
 import { Fighter } from './fighter.js';
 import { LocalController, AIController, applyButtons } from './controllers.js';
-import { updateProjectiles, updateHazards, renderProjectiles, renderHazards, renderGroundHazards, glow } from './moves.js';
+import { updateProjectiles, updateHazards, renderProjectiles, renderHazards, renderGroundHazards, glow, rayLength } from './moves.js';
 import { renderHUD } from './hud.js';
 import { text, textWidth, roundRect, backOut, drawCreature } from './ui.js';
 import { speakName } from './announcer.js';
 import { hasGmaxSprite } from './sprites.js';
 import { fxRandom } from './rng.js';
 
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
 // Combate por equipos: cuando un Pokémon se debilita entra el siguiente
 export class Battle {
   constructor(game, { teamA, teamB, bossLast = false, difficulty = 'normal', arena = 'piscina', round = null, seed = 1, gmax = true }) {
     this.game = game;
     this.audio = game.audio;
-    this.arena = new Arena(arena, seed);
+    this.arena = this.createArena(arena, seed);
     this.effects = new Effects();
     this.difficulty = difficulty;
     this.round = round;
@@ -49,6 +51,109 @@ export class Battle {
     this.gmaxOn = gmax;
     this.gx = [{ m: 0, used: false }, { m: 0, used: false }];
     this.gmaxFx = null;
+  }
+
+  // ---------------------------------------------------------------- Ganchos
+  // Lo que cambia cuando hay más de dos Pokémon en un mapa grande (la batalla
+  // campal los reemplaza). Acá está el comportamiento de siempre, de a dos.
+
+  createArena(key, seed) {
+    return new Arena(key, seed);
+  }
+
+  // A quién apunta, persigue y mira este Pokémon
+  targetFor(f) {
+    return this.fighters[1 - f.side];
+  }
+
+  // A quiénes les pueden pegar sus ataques
+  enemiesOf(f) {
+    return [this.targetFor(f)];
+  }
+
+  // Cada ataque le pega una sola vez a cada uno (flag: 'hit' o 'passed')
+  hitBefore(obj, target, flag = 'hit') {
+    return obj[flag];
+  }
+
+  markHit(obj, target, flag = 'hit') {
+    obj[flag] = true;
+  }
+
+  clearHits(obj) {
+    obj.hit = false;
+  }
+
+  // La IA pega más suave en las dificultades bajas
+  dmgScale(att) {
+    return this.controllers[att.side]?.isAI ? DIFFICULTY[this.difficulty].dmgMult : 1;
+  }
+
+  // Mantiene los pies dentro de la cancha
+  confine(f) {
+    f.x = clamp(f.x, FIELD.x0 + f.r * 0.6, FIELD.x1 - f.r * 0.6);
+    // Un gigante no puede pararse tan arriba (si no, la cabeza queda fuera de la pantalla)
+    f.y = clamp(f.y, f.gs > 1 ? Math.min(FIELD.y1 - 10, Math.max(FIELD.y0, f.tall + 14)) : FIELD.y0, FIELD.y1);
+  }
+
+  // Lugar válido más cercano para aparecer de golpe (Teletransporte, Golpe Fantasma)
+  clampSpot(f, x, y) {
+    return [clamp(x, FIELD.x0 + f.r, FIELD.x1 - f.r), clamp(y, FIELD.y0, FIELD.y1)];
+  }
+
+  spotFree(f, x) {
+    return !(x < FIELD.x0 + f.r || x > FIELD.x1 - f.r);
+  }
+
+  // Las embestidas rebotan contra los bordes
+  dashBounce(f, a, nx, ny) {
+    if (nx < FIELD.x0 + f.r || nx > FIELD.x1 - f.r) a.dir[0] *= -1;
+    if (ny < FIELD.y0 || ny > FIELD.y1) a.dir[1] *= -1;
+  }
+
+  // Bordes para los proyectiles: rebota (burbuja) o desaparece (devuelve true)
+  projectileOut(p) {
+    if (p.bounces > 0 && (p.x < FIELD.x0 || p.x > FIELD.x1 || p.y < FIELD.y0 - 6 || p.y > FIELD.y1)) {
+      if (p.x < FIELD.x0 || p.x > FIELD.x1) p.vx *= -1;
+      if (p.y < FIELD.y0 - 6 || p.y > FIELD.y1) p.vy *= -1;
+      p.x = clamp(p.x, FIELD.x0, FIELD.x1);
+      p.y = clamp(p.y, FIELD.y0 - 6, FIELD.y1);
+      p.bounces--;
+    } else if (p.x < -10 || p.x > VW + 10 || p.y < FIELD.y0 - 24 || p.y > FIELD.y1 + 8) {
+      return true;
+    }
+    return false;
+  }
+
+  // Hasta dónde llega un rayo
+  rayLength(x, y, ang, max) {
+    return rayLength(x, ang, max);
+  }
+
+  waveOut(h) {
+    return h.t > 3 || h.x < -80 || h.x > VW + 80 || h.y < -80 || h.y > 260;
+  }
+
+  // IA: que no se pegue a los bordes, y hacia dónde queda el centro
+  avoidEdges(f, mx, my) {
+    const m = 26;
+    if (f.x < FIELD.x0 + m) mx += ((FIELD.x0 + m - f.x) / m) * 1.5;
+    if (f.x > FIELD.x1 - m) mx -= ((f.x - (FIELD.x1 - m)) / m) * 1.5;
+    if (f.y < FIELD.y0 + m * 0.6) my += 1.2;
+    if (f.y > FIELD.y1 - m * 0.6) my -= 1.2;
+    return [mx, my];
+  }
+
+  centerFor() {
+    return [(FIELD.x0 + FIELD.x1) / 2, (FIELD.y0 + FIELD.y1) / 2];
+  }
+
+  // Avisa qué proyectil o peligro se está moviendo (para sonidos y temblores cercanos)
+  focus() {}
+
+  // Aro en los pies: naranja el tuyo, azul el rival (como en la pantalla VS)
+  ringColor(f) {
+    return f.side === this.localSide ? '#ffb43b' : '#5ab4ff';
   }
 
   chargeGmax(side, v) {
@@ -219,8 +324,7 @@ export class Battle {
     const stab = moveType === att.type ? 1.15 : 1;
     const crit = !o.noCrit && Math.random() < 0.07;
     const roll = o.tick ? 1 : 0.92 + Math.random() * 0.16;
-    // La IA pega más suave en las dificultades bajas
-    const aiMult = this.controllers[att.side]?.isAI ? DIFFICULTY[this.difficulty].dmgMult : 1;
+    const aiMult = this.dmgScale(att, def);
     // Gigante: pega más fuerte, recibe menos, y su ataque Gigamax es devastador
     const giant = (att.gmax > 0 ? 1.3 : 1) * (def.gmax > 0 ? 0.6 : 1) * (att.gmax > 0 && o.m === att.moves[4] ? 1.5 : 1);
     const dmg = Math.max(1, Math.round(((base * att.pow) / def.defn) * mult * stab * aiMult * (crit ? 1.5 : 1) * roll * giant));
